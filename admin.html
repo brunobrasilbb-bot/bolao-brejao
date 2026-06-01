@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Bolão do Brejão</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">🏆 Bolão do Brejão</span>
+      <nav>
+        <a href="index.html">Início</a>
+        <a href="admin.html" class="active">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>⚙️ Painel Admin</h1>
+    <p class="subtitle">Cadastre os resultados dos jogos aqui. O ranking atualiza automaticamente.</p>
+
+    <div id="admin-matches"></div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAluSHveth9Eo_1HiBdFdQiUKMC8xv4Djg",
+      authDomain: "bolao-do-brejo.firebaseapp.com",
+      projectId: "bolao-do-brejo",
+      storageBucket: "bolao-do-brejo.firebasestorage.app",
+      messagingSenderId: "466701021829",
+      appId: "1:466701021829:web:aa0c83c11f594b58742fec"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const MATCHES = [
+      { id: 'm1', home: 'Brasil', homeFlag: '🇧🇷', away: 'México', awayFlag: '🇲🇽', date: '11/06/2026 15:00', group: 'Grupo A' },
+      { id: 'm2', home: 'Argentina', homeFlag: '🇦🇷', away: 'Chile', awayFlag: '🇨🇱', date: '11/06/2026 18:00', group: 'Grupo B' },
+      { id: 'm3', home: 'Portugal', homeFlag: '🇵🇹', away: 'França', awayFlag: '🇫🇷', date: '12/06/2026 12:00', group: 'Grupo C' },
+      { id: 'm4', home: 'Alemanha', homeFlag: '🇩🇪', away: 'Espanha', awayFlag: '🇪🇸', date: '12/06/2026 18:00', group: 'Grupo D' },
+      { id: 'm5', home: 'EUA', homeFlag: '🇺🇸', away: 'Canadá', awayFlag: '🇨🇦', date: '13/06/2026 15:00', group: 'Grupo E' },
+      { id: 'm6', home: 'Japão', homeFlag: '🇯🇵', away: 'Coreia do Sul', awayFlag: '🇰🇷', date: '14/06/2026 09:00', group: 'Grupo F' },
+      { id: 'm7', home: 'Itália', homeFlag: '🇮🇹', away: 'Croácia', awayFlag: '🇭🇷', date: '14/06/2026 15:00', group: 'Grupo G' },
+      { id: 'm8', home: 'Marrocos', homeFlag: '🇲🇦', away: 'Senegal', awayFlag: '🇸🇳', date: '15/06/2026 12:00', group: 'Grupo H' },
+    ];
+
+    async function init() {
+      const resSnap = await getDocs(collection(db, 'resultados'));
+      const resultados = {};
+      resSnap.forEach(d => { resultados[d.id] = d.data(); });
+
+      const c = document.getElementById('admin-matches');
+      c.innerHTML = '';
+      MATCHES.forEach(m => {
+        const res = resultados[m.id];
+        const div = document.createElement('div');
+        div.className = 'match-card';
+        div.innerHTML = `
+          <div class="match-head">
+            <span class="match-group">${m.group}</span>
+            <span class="match-date">${m.date}</span>
+            ${res ? '<span class="badge-done">✅ Resultado salvo</span>' : '<span class="badge-open">Aguardando</span>'}
+          </div>
+          <div class="match-teams">
+            <div class="team"><div class="flag">${m.homeFlag}</div><div class="name">${m.home}</div></div>
+            <div class="score-inputs">
+              <input type="number" min="0" max="20" step="1" value="${res ? res.home : ''}" id="rh-${m.id}" placeholder="0" />
+              <span class="vs-x">×</span>
+              <input type="number" min="0" max="20" step="1" value="${res ? res.away : ''}" id="ra-${m.id}" placeholder="0" />
+            </div>
+            <div class="team"><div class="flag">${m.awayFlag}</div><div class="name">${m.away}</div></div>
+          </div>
+          <button class="btn-save-res" onclick="salvarResultado('${m.id}')">Salvar resultado</button>
+        `;
+        c.appendChild(div);
+      });
+    }
+
+    window.salvarResultado = async function(id) {
+      const h = document.getElementById('rh-' + id);
+      const a = document.getElementById('ra-' + id);
+      if (!h || !a || h.value === '' || a.value === '') { alert('Preencha os dois placares!'); return; }
+      await setDoc(doc(db, 'resultados', id), { home: parseInt(h.value), away: parseInt(a.value), savedAt: new Date().toISOString() });
+      alert('Resultado salvo! ✅');
+      init();
+    };
+
+    init();
+  </script>
+</body>
+</html>

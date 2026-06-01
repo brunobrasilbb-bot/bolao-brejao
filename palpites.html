@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Palpites — Bolão do Brejão</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">🏆 Bolão do Brejão</span>
+      <nav>
+        <a href="index.html">Início</a>
+        <a href="palpites.html" class="active">Palpites</a>
+        <a href="resultados.html">Resultados</a>
+        <a href="ranking.html">Ranking</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div id="no-login" class="no-login" style="display:none;">
+      <span>🔐</span>
+      <h2>Faça seu cadastro primeiro</h2>
+      <p>Você precisa estar cadastrado para dar palpites.</p>
+      <a href="index.html#register-card" class="btn-primary">Cadastrar agora</a>
+    </div>
+
+    <div id="area-palpites" style="display:none;">
+      <h1>Meus Palpites</h1>
+      <p class="subtitle">Preencha os placares antes de cada jogo começar</p>
+
+      <div class="stats-row">
+        <div class="stat"><div class="n" id="s-pts">0</div><div class="l">pontos</div></div>
+        <div class="stat"><div class="n" id="s-exact">0</div><div class="l">placares exatos</div></div>
+        <div class="stat"><div class="n" id="s-win">0</div><div class="l">vencedores certos</div></div>
+        <div class="stat"><div class="n" id="s-count">0</div><div class="l">palpites dados</div></div>
+      </div>
+
+      <div class="save-bar">
+        <span id="unsaved-txt">0 palpites não salvos</span>
+        <button onclick="salvar()">Salvar palpites ✅</button>
+      </div>
+
+      <div id="matches-container"></div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAluSHveth9Eo_1HiBdFdQiUKMC8xv4Djg",
+      authDomain: "bolao-do-brejo.firebaseapp.com",
+      projectId: "bolao-do-brejo",
+      storageBucket: "bolao-do-brejo.firebasestorage.app",
+      messagingSenderId: "466701021829",
+      appId: "1:466701021829:web:aa0c83c11f594b58742fec"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getUser() {
+      try { return JSON.parse(localStorage.getItem('brejao_user')); } catch { return null; }
+    }
+
+    const MATCHES = [
+      { id: 'm1', home: 'Brasil', homeFlag: '🇧🇷', away: 'México', awayFlag: '🇲🇽', date: '11/06/2026 15:00', group: 'Grupo A' },
+      { id: 'm2', home: 'Argentina', homeFlag: '🇦🇷', away: 'Chile', awayFlag: '🇨🇱', date: '11/06/2026 18:00', group: 'Grupo B' },
+      { id: 'm3', home: 'Portugal', homeFlag: '🇵🇹', away: 'França', awayFlag: '🇫🇷', date: '12/06/2026 12:00', group: 'Grupo C' },
+      { id: 'm4', home: 'Alemanha', homeFlag: '🇩🇪', away: 'Espanha', awayFlag: '🇪🇸', date: '12/06/2026 18:00', group: 'Grupo D' },
+      { id: 'm5', home: 'EUA', homeFlag: '🇺🇸', away: 'Canadá', awayFlag: '🇨🇦', date: '13/06/2026 15:00', group: 'Grupo E' },
+      { id: 'm6', home: 'Japão', homeFlag: '🇯🇵', away: 'Coreia do Sul', awayFlag: '🇰🇷', date: '14/06/2026 09:00', group: 'Grupo F' },
+      { id: 'm7', home: 'Itália', homeFlag: '🇮🇹', away: 'Croácia', awayFlag: '🇭🇷', date: '14/06/2026 15:00', group: 'Grupo G' },
+      { id: 'm8', home: 'Marrocos', homeFlag: '🇲🇦', away: 'Senegal', awayFlag: '🇸🇳', date: '15/06/2026 12:00', group: 'Grupo H' },
+    ];
+
+    let userPalpites = {};
+    let unsavedIds = new Set();
+    let resultados = {};
+
+    async function init() {
+      const user = getUser();
+      if (!user) {
+        document.getElementById('no-login').style.display = 'block';
+        return;
+      }
+      document.getElementById('area-palpites').style.display = 'block';
+
+      const resSnap = await getDocs(collection(db, 'resultados'));
+      resSnap.forEach(d => { resultados[d.id] = d.data(); });
+
+      const palRef = doc(db, 'palpites', user.id);
+      const palSnap = await getDoc(palRef);
+      if (palSnap.exists()) userPalpites = palSnap.data();
+
+      renderMatches();
+      updateStats();
+    }
+
+    function isLocked(m) {
+      return !!resultados[m.id];
+    }
+
+    function renderMatches() {
+      const c = document.getElementById('matches-container');
+      c.innerHTML = '';
+      MATCHES.forEach(m => {
+        const locked = isLocked(m);
+        const p = userPalpites[m.id] || { home: '', away: '' };
+        const res = resultados[m.id];
+        const div = document.createElement('div');
+        div.className = 'match-card';
+        div.innerHTML = `
+          <div class="match-head">
+            <span class="match-group">${m.group}</span>
+            <span class="match-date">${m.date}</span>
+            ${locked ? '<span class="badge-done">Encerrado</span>' : '<span class="badge-open">Aberto</span>'}
+          </div>
+          <div class="match-teams">
+            <div class="team"><div class="flag">${m.homeFlag}</div><div class="name">${m.home}</div></div>
+            <div class="score-inputs">
+              <input type="number" min="0" max="20" step="1" value="${p.home !== undefined ? p.home : ''}" ${locked ? 'disabled' : ''} id="ph-${m.id}" oninput="markUnsaved('${m.id}')" />
+              <span class="vs-x">×</span>
+              <input type="number" min="0" max="20" step="1" value="${p.away !== undefined ? p.away : ''}" ${locked ? 'disabled' : ''} id="pa-${m.id}" oninput="markUnsaved('${m.id}')" />
+            </div>
+            <div class="team"><div class="flag">${m.awayFlag}</div><div class="name">${m.away}</div></div>
+          </div>
+          ${locked && res ? `<div class="result-final">Resultado: ${res.home} × ${res.away}</div>` : ''}
+        `;
+        c.appendChild(div);
+      });
+    }
+
+    window.markUnsaved = function(id) {
+      unsavedIds.add(id);
+      document.getElementById('unsaved-txt').textContent = unsavedIds.size + ' palpite' + (unsavedIds.size !== 1 ? 's' : '') + ' não salvo' + (unsavedIds.size !== 1 ? 's' : '');
+    };
+
+    window.salvar = async function() {
+      const user = getUser();
+      if (!user) return;
+      MATCHES.forEach(m => {
+        if (isLocked(m)) return;
+        const h = document.getElementById('ph-' + m.id);
+        const a = document.getElementById('pa-' + m.id);
+        if (h && a && h.value !== '' && a.value !== '') {
+          userPalpites[m.id] = { home: parseInt(h.value), away: parseInt(a.value) };
+        }
+      });
+      await setDoc(doc(db, 'palpites', user.id), { ...userPalpites, userId: user.id, nome: user.nome });
+      unsavedIds.clear();
+      document.getElementById('unsaved-txt').textContent = '0 palpites não salvos';
+      updateStats();
+      alert('Palpites salvos com sucesso! ✅');
+    };
+
+    function updateStats() {
+      let pts = 0, exact = 0, win = 0, count = 0;
+      MATCHES.forEach(m => {
+        const res = resultados[m.id];
+        if (!res) return;
+        const p = userPalpites[m.id];
+        if (!p || p.home === '' || p.away === '') return;
+        count++;
+        if (p.home === res.home && p.away === res.away) { pts += 5; exact++; }
+        else if ((p.home > p.away && res.home > res.away) || (p.home < p.away && res.home < res.away) || (p.home === p.away && res.home === res.away)) { pts += 3; win++; }
+      });
+      document.getElementById('s-pts').textContent = pts;
+      document.getElementById('s-exact').textContent = exact;
+      document.getElementById('s-win').textContent = win;
+      document.getElementById('s-count').textContent = count;
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resultados — Bolão do Brejão</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">🏆 Bolão do Brejão</span>
+      <nav>
+        <a href="index.html">Início</a>
+        <a href="palpites.html">Palpites</a>
+        <a href="resultados.html" class="active">Resultados</a>
+        <a href="ranking.html">Ranking</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-header">
+      <h1>Resultados</h1>
+      <button class="btn-refresh" onclick="init()">↻ Atualizar</button>
+    </div>
+
+    <div class="legend">
+      <span>⭐ 5 pts = placar exato</span>
+      <span>✅ 3 pts = vencedor/empate certo</span>
+      <span>❌ 0 pts = errou</span>
+      <span class="legend-note">Placar do tempo regulamentar</span>
+    </div>
+
+    <div id="resultados-container"><p class="loading">Carregando...</p></div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAluSHveth9Eo_1HiBdFdQiUKMC8xv4Djg",
+      authDomain: "bolao-do-brejo.firebaseapp.com",
+      projectId: "bolao-do-brejo",
+      storageBucket: "bolao-do-brejo.firebasestorage.app",
+      messagingSenderId: "466701021829",
+      appId: "1:466701021829:web:aa0c83c11f594b58742fec"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getUser() {
+      try { return JSON.parse(localStorage.getItem('brejao_user')); } catch { return null; }
+    }
+
+    const MATCHES = [
+      { id: 'm1', home: 'Brasil', homeFlag: '🇧🇷', away: 'México', awayFlag: '🇲🇽', date: '11/06/2026', group: 'Grupo A' },
+      { id: 'm2', home: 'Argentina', homeFlag: '🇦🇷', away: 'Chile', awayFlag: '🇨🇱', date: '11/06/2026', group: 'Grupo B' },
+      { id: 'm3', home: 'Portugal', homeFlag: '🇵🇹', away: 'França', awayFlag: '🇫🇷', date: '12/06/2026', group: 'Grupo C' },
+      { id: 'm4', home: 'Alemanha', homeFlag: '🇩🇪', away: 'Espanha', awayFlag: '🇪🇸', date: '12/06/2026', group: 'Grupo D' },
+      { id: 'm5', home: 'EUA', homeFlag: '🇺🇸', away: 'Canadá', awayFlag: '🇨🇦', date: '13/06/2026', group: 'Grupo E' },
+      { id: 'm6', home: 'Japão', homeFlag: '🇯🇵', away: 'Coreia do Sul', awayFlag: '🇰🇷', date: '14/06/2026', group: 'Grupo F' },
+      { id: 'm7', home: 'Itália', homeFlag: '🇮🇹', away: 'Croácia', awayFlag: '🇭🇷', date: '14/06/2026', group: 'Grupo G' },
+      { id: 'm8', home: 'Marrocos', homeFlag: '🇲🇦', away: 'Senegal', awayFlag: '🇸🇳', date: '15/06/2026', group: 'Grupo H' },
+    ];
+
+    window.init = async function() {
+      const c = document.getElementById('resultados-container');
+      c.innerHTML = '<p class="loading">Carregando...</p>';
+      const user = getUser();
+
+      const resSnap = await getDocs(collection(db, 'resultados'));
+      const resultados = {};
+      resSnap.forEach(d => { resultados[d.id] = d.data(); });
+
+      let userPalpites = {};
+      if (user) {
+        const palSnap = await getDoc(doc(db, 'palpites', user.id));
+        if (palSnap.exists()) userPalpites = palSnap.data();
+      }
+
+      const done = MATCHES.filter(m => resultados[m.id]);
+      if (done.length === 0) {
+        c.innerHTML = '<p class="empty">Nenhum resultado cadastrado ainda. Aguarde os jogos!</p>';
+        return;
+      }
+
+      c.innerHTML = '';
+      done.forEach(m => {
+        const res = resultados[m.id];
+        const p = userPalpites[m.id];
+        let badge = '';
+        if (p && p.home !== undefined) {
+          if (p.home === res.home && p.away === res.away) badge = '<span class="badge-exact">⭐ +5 pts</span>';
+          else if ((p.home > p.away && res.home > res.away) || (p.home < p.away && res.home < res.away) || (p.home === p.away && res.home === res.away)) badge = '<span class="badge-win">✅ +3 pts</span>';
+          else badge = '<span class="badge-miss">❌ 0 pts</span>';
+        }
+        const div = document.createElement('div');
+        div.className = 'res-card';
+        div.innerHTML = `
+          <div class="res-head">
+            <span class="match-group">${m.group} — ${m.date}</span>
+            ${badge}
+          </div>
+          <div class="res-teams">
+            <span class="flag">${m.homeFlag}</span>
+            <strong>${m.home}</strong>
+            <span class="res-score">${res.home} × ${res.away}</span>
+            <strong>${m.away}</strong>
+            <span class="flag">${m.awayFlag}</span>
+          </div>
+          ${p && p.home !== undefined ? `<div class="meu-palpite">Seu palpite: ${p.home} × ${p.away}</div>` : '<div class="meu-palpite sem-palpite">Sem palpite registrado</div>'}
+        `;
+        c.appendChild(div);
+      });
+    };
+
+    init();
+  </script>
+</body>
+</html>

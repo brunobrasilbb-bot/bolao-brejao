@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bolão do Brejão 🏆</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">🏆 Bolão do Brejão</span>
+      <nav>
+        <a href="index.html" class="active">Início</a>
+        <a href="palpites.html">Palpites</a>
+        <a href="resultados.html">Resultados</a>
+        <a href="ranking.html">Ranking</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="flags">🇧🇷 🇺🇸 🇲🇽 🇨🇦 🇦🇷 🇫🇷 🇩🇪 🇵🇹</div>
+      <h1>Bolão do Brejão</h1>
+      <p>Copa do Mundo 2026 — dispute o ranking com a galera do bairro!</p>
+    </section>
+
+    <section class="how-it-works">
+      <div class="card-grid">
+        <div class="info-card">
+          <span class="icon">📝</span>
+          <h3>Cadastre-se</h3>
+          <p>Informe seu nome, e-mail e WhatsApp para participar</p>
+        </div>
+        <div class="info-card">
+          <span class="icon">⏱️</span>
+          <h3>Antes do jogo</h3>
+          <p>Palpites só são aceitos antes do apito inicial de cada partida</p>
+        </div>
+        <div class="info-card">
+          <span class="icon">🎯</span>
+          <h3>5 pontos</h3>
+          <p>Placar exato do tempo regulamentar</p>
+        </div>
+        <div class="info-card">
+          <span class="icon">✅</span>
+          <h3>3 pontos</h3>
+          <p>Acertar quem vence ou se há empate</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="register-section" id="register-card">
+      <div class="form-card" id="form-cadastro">
+        <h2>🎉 Participar</h2>
+        <p>Crie seu cadastro e comece a dar seus palpites</p>
+        <div class="field">
+          <label>Nome completo</label>
+          <input type="text" id="inp-nome" placeholder="Seu nome" />
+        </div>
+        <div class="field">
+          <label>E-mail</label>
+          <input type="email" id="inp-email" placeholder="seu@email.com" />
+        </div>
+        <div class="field">
+          <label>WhatsApp</label>
+          <div class="phone-row">
+            <span class="ddi">🇧🇷 +55</span>
+            <input type="tel" id="inp-wp" placeholder="(62) 9 0000-0000" />
+          </div>
+        </div>
+        <button class="btn-primary" onclick="cadastrar()">Entrar no Bolão 🏆</button>
+        <p class="msg-error" id="msg-error"></p>
+      </div>
+
+      <div class="already-in" id="div-logado" style="display:none;">
+        <span class="wave">👋</span>
+        <h3>Você já está participando do bolão!</h3>
+        <p id="txt-logado"></p>
+        <div class="row-btns">
+          <a href="palpites.html" class="btn-outline">Ver meus palpites ⚽</a>
+          <a href="ranking.html" class="btn-outline">Ver ranking 🏅</a>
+        </div>
+        <button class="btn-sair" onclick="sair()">Sair / trocar conta</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAluSHveth9Eo_1HiBdFdQiUKMC8xv4Djg",
+      authDomain: "bolao-do-brejo.firebaseapp.com",
+      projectId: "bolao-do-brejo",
+      storageBucket: "bolao-do-brejo.firebasestorage.app",
+      messagingSenderId: "466701021829",
+      appId: "1:466701021829:web:aa0c83c11f594b58742fec"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getUser() {
+      try { return JSON.parse(localStorage.getItem('brejao_user')); } catch { return null; }
+    }
+    function setUser(u) { localStorage.setItem('brejao_user', JSON.stringify(u)); }
+
+    function updateUI() {
+      const user = getUser();
+      if (user) {
+        document.getElementById('form-cadastro').style.display = 'none';
+        document.getElementById('div-logado').style.display = 'block';
+        document.getElementById('txt-logado').textContent = 'Bem-vindo, ' + user.nome + '! Bora torcer!';
+      } else {
+        document.getElementById('form-cadastro').style.display = 'block';
+        document.getElementById('div-logado').style.display = 'none';
+      }
+    }
+
+    window.cadastrar = async function() {
+      const nome = document.getElementById('inp-nome').value.trim();
+      const email = document.getElementById('inp-email').value.trim().toLowerCase();
+      const wp = document.getElementById('inp-wp').value.trim();
+      const err = document.getElementById('msg-error');
+      if (!nome || !email) { err.textContent = 'Preencha nome e e-mail!'; return; }
+      err.textContent = '';
+      const id = email.replace(/[^a-z0-9]/g, '_');
+      const ref = doc(db, 'usuarios', id);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        await setDoc(ref, { nome, email, wp, criadoEm: new Date().toISOString() });
+      }
+      setUser({ nome, email, id });
+      updateUI();
+    };
+
+    window.sair = function() {
+      localStorage.removeItem('brejao_user');
+      updateUI();
+    };
+
+    updateUI();
+  </script>
+</body>
+</html>

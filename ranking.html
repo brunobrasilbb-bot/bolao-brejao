@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ranking — Bolão do Brejão</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">🏆 Bolão do Brejão</span>
+      <nav>
+        <a href="index.html">Início</a>
+        <a href="palpites.html">Palpites</a>
+        <a href="resultados.html">Resultados</a>
+        <a href="ranking.html" class="active">Ranking</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-header">
+      <h1>🏅 Ranking Geral</h1>
+      <button class="btn-refresh" onclick="init()">↻ Atualizar</button>
+    </div>
+
+    <div class="legend">
+      <span>⭐ 5 pts = placar exato</span>
+      <span>✅ 3 pts = vencedor/empate certo</span>
+      <span>❌ 0 pts = errou</span>
+      <span class="legend-note">Placar do tempo regulamentar</span>
+    </div>
+
+    <div id="ranking-container"><p class="loading">Carregando...</p></div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAluSHveth9Eo_1HiBdFdQiUKMC8xv4Djg",
+      authDomain: "bolao-do-brejo.firebaseapp.com",
+      projectId: "bolao-do-brejo",
+      storageBucket: "bolao-do-brejo.firebasestorage.app",
+      messagingSenderId: "466701021829",
+      appId: "1:466701021829:web:aa0c83c11f594b58742fec"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getUser() {
+      try { return JSON.parse(localStorage.getItem('brejao_user')); } catch { return null; }
+    }
+
+    const MATCHES = [
+      { id: 'm1' }, { id: 'm2' }, { id: 'm3' }, { id: 'm4' },
+      { id: 'm5' }, { id: 'm6' }, { id: 'm7' }, { id: 'm8' },
+    ];
+
+    window.init = async function() {
+      const c = document.getElementById('ranking-container');
+      c.innerHTML = '<p class="loading">Carregando...</p>';
+      const currentUser = getUser();
+
+      const [resSnap, palSnap] = await Promise.all([
+        getDocs(collection(db, 'resultados')),
+        getDocs(collection(db, 'palpites')),
+      ]);
+
+      const resultados = {};
+      resSnap.forEach(d => { resultados[d.id] = d.data(); });
+
+      const allPalpites = [];
+      palSnap.forEach(d => { allPalpites.push({ id: d.id, ...d.data() }); });
+
+      if (allPalpites.length === 0) {
+        c.innerHTML = '<p class="empty">Nenhum participante ainda. Seja o primeiro!</p>';
+        return;
+      }
+
+      const ranked = allPalpites.map(pal => {
+        let pts = 0, exact = 0, win = 0, count = 0;
+        MATCHES.forEach(m => {
+          const res = resultados[m.id];
+          if (!res) return;
+          const p = pal[m.id];
+          if (!p || p.home === undefined) return;
+          count++;
+          if (p.home === res.home && p.away === res.away) { pts += 5; exact++; }
+          else if ((p.home > p.away && res.home > res.away) || (p.home < p.away && res.home < res.away) || (p.home === p.away && res.home === res.away)) { pts += 3; win++; }
+        });
+        return { nome: pal.nome || pal.userId, email: pal.userId, pts, exact, win, count };
+      }).sort((a, b) => b.pts - a.pts || b.exact - a.exact);
+
+      const medals = ['🥇', '🥈', '🥉'];
+      let html = `<table class="ranking-table">
+        <thead><tr><th>#</th><th>Participante</th><th>Palpites</th><th>Vencedores</th><th>Exatos</th><th>Pontos</th></tr></thead>
+        <tbody>`;
+
+      ranked.forEach((u, i) => {
+        const isMe = currentUser && u.email === currentUser.id;
+        html += `<tr class="${isMe ? 'my-row' : ''}">
+          <td class="pos">${medals[i] || (i + 1)}</td>
+          <td class="nome">${u.nome}${isMe ? ' <span class="you-tag">(você)</span>' : ''}</td>
+          <td>${u.count}</td>
+          <td>${u.win}</td>
+          <td>${u.exact}</td>
+          <td><span class="pts-badge">${u.pts}</span></td>
+        </tr>`;
+      });
+
+      html += '</tbody></table>';
+      c.innerHTML = html;
+    };
+
+    init();
+  </script>
+</body>
+</html>
