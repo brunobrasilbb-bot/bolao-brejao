@@ -378,3 +378,23 @@ h1.subtitle-below { margin-bottom: 4px; }
   .header-inner { height: auto; padding: 8px 0; }
   .ranking-table th, .ranking-table td { padding: 8px; font-size: 12px; }
 }
+
+/* PHASE FILTER */
+.phase-filter {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+.filter-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.filter-btn:hover { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+.filter-btn.active { background: var(--green); color: white; border-color: var(--green); font-weight: 600; }
