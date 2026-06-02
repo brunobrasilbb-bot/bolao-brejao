@@ -37,7 +37,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAluSHveth9Eo_1HiBdFdQiUKMC8xv4Djg",
@@ -172,21 +172,30 @@
       c.innerHTML = '<p class="loading">Carregando...</p>';
       const currentUser = getUser();
 
-      const [resSnap, palSnap] = await Promise.all([
+      const [resSnap, palSnap, usersSnap] = await Promise.all([
         getDocs(collection(db, 'resultados')),
         getDocs(collection(db, 'palpites')),
+        getDocs(collection(db, 'usuarios')),
       ]);
 
       const resultados = {};
       resSnap.forEach(d => { resultados[d.id] = d.data(); });
 
-      const allPalpites = [];
-      palSnap.forEach(d => { allPalpites.push({ id: d.id, ...d.data() }); });
+      // Build palpites map by userId
+      const palpitesMap = {};
+      palSnap.forEach(d => { palpitesMap[d.id] = d.data(); });
 
-      if (allPalpites.length === 0) {
+      // Get all registered users
+      const allUsers = [];
+      usersSnap.forEach(d => { allUsers.push({ id: d.id, ...d.data() }); });
+
+      if (allUsers.length === 0) {
         c.innerHTML = '<p class="empty">Nenhum participante ainda. Seja o primeiro!</p>';
         return;
       }
+
+      // Merge users with their palpites
+      const allPalpites = allUsers.map(u => ({ ...palpitesMap[u.id], id: u.id, nome: u.nome, userId: u.id }));
 
       const ranked = allPalpites.map(pal => {
         let pts = 0, exact = 0, win = 0, count = 0;
