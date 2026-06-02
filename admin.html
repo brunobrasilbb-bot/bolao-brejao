@@ -16,17 +16,22 @@
       </nav>
     </div>
   </header>
-
   <main>
-    <h1>⚙️ Painel Admin</h1>
-    <p class="subtitle">Cadastre os resultados dos jogos aqui. O ranking atualiza automaticamente.</p>
+    <div class="page-header">
+      <h1>⚙️ Painel Admin</h1>
+      <button class="btn-refresh" onclick="syncResultados()">🔄 Buscar resultados automático</button>
+    </div>
+    <p class="subtitle">Clique em "Buscar resultados automático" para importar os placares direto da internet. Ou cadastre manualmente abaixo.</p>
 
+    <div id="sync-status" style="margin-bottom:1rem;"></div>
+
+    <div class="phase-filter" id="phase-filter"></div>
     <div id="admin-matches"></div>
   </main>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAluSHveth9Eo_1HiBdFdQiUKMC8xv4Djg",
@@ -36,130 +41,215 @@
       messagingSenderId: "466701021829",
       appId: "1:466701021829:web:aa0c83c11f594b58742fec"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // Map from openfootball team names to our match IDs
+    // Key: "team1|team2" (alphabetical order), Value: match id
+    const TEAM_TO_ID = {
+      "Mexico|South Africa": "m1",
+      "South Korea|UEFA Path D winner": "m2",
+      "Canada|UEFA Path A winner": "m3",
+      "Paraguay|USA": "m4",
+      "Australia|Turkey": "m5",
+      "Qatar|Switzerland": "m6",
+      "Brazil|Morocco": "m7",
+      "Haiti|Scotland": "m8",
+      "Curacao|Germany": "m9",
+      "Japan|Netherlands": "m10",
+      "Ivory Coast|Ecuador": "m11",
+      "Sweden|Tunisia": "m12",
+      "Cape Verde|Spain": "m13",
+      "Belgium|Egypt": "m14",
+      "Saudi Arabia|Uruguay": "m15",
+      "Iran|New Zealand": "m16",
+      "France|Senegal": "m17",
+      "Iraq|Norway": "m18",
+      "Algeria|Argentina": "m19",
+      "Austria|Jordan": "m20",
+      "DR Congo|Portugal": "m21",
+      "Croatia|England": "m22",
+      "Ghana|Panama": "m23",
+      "Colombia|Uzbekistan": "m24",
+      "South Africa|UEFA Path D winner": "m25",
+      "Switzerland|UEFA Path A winner": "m26",
+      "Canada|Qatar": "m27",
+      "Mexico|South Korea": "m28",
+      "Paraguay|Turkey": "m29",
+      "Australia|USA": "m30",
+      "Morocco|Scotland": "m31",
+      "Brazil|Haiti": "m32",
+      "Netherlands|Sweden": "m33",
+      "Germany|Ivory Coast": "m34",
+      "Curacao|Ecuador": "m35",
+      "Japan|Tunisia": "m36",
+      "Saudi Arabia|Spain": "m37",
+      "Belgium|Iran": "m38",
+      "Cape Verde|Uruguay": "m39",
+      "Egypt|New Zealand": "m40",
+      "Argentina|Austria": "m41",
+      "France|Iraq": "m42",
+      "Norway|Senegal": "m43",
+      "Algeria|Jordan": "m44",
+      "Portugal|Uzbekistan": "m45",
+      "England|Ghana": "m46",
+      "Croatia|Panama": "m47",
+      "Colombia|DR Congo": "m48",
+      "Canada|Switzerland": "m49",
+      "Bosnia-Herzegovina|Qatar": "m50",
+      "Brazil|Scotland": "m51",
+      "Haiti|Morocco": "m52",
+      "Mexico|UEFA Path D winner": "m53",
+      "South Africa|South Korea": "m54",
+      "Ecuador|Germany": "m55",
+      "Curacao|Ivory Coast": "m56",
+      "Netherlands|Tunisia": "m57",
+      "Japan|Sweden": "m58",
+      "Turkey|USA": "m59",
+      "Australia|Paraguay": "m60",
+      "France|Norway": "m61",
+      "Iraq|Senegal": "m62",
+      "Spain|Uruguay": "m63",
+      "Cape Verde|Saudi Arabia": "m64",
+      "Egypt|Iran": "m65",
+      "Belgium|New Zealand": "m66",
+      "England|Panama": "m67",
+      "Croatia|Ghana": "m68",
+      "Colombia|Portugal": "m69",
+      "DR Congo|Uzbekistan": "m70",
+      "Argentina|Jordan": "m71",
+      "Algeria|Austria": "m72",
+    };
+
+    const PHASES = ["Fase de Grupos","32 Avos de Final","Oitavas de Final","Quartas de Final","Semifinais","Final"];
+    let currentPhase = "Fase de Grupos";
+    let resultados = {};
+
     const MATCHES = [
-      // FASE DE GRUPOS
-      { id:"m1",  home:"México",          homeFlag:"🇲🇽", away:"África do Sul",   awayFlag:"🇿🇦", date:"11/06 16h", kickoff:"2026-06-11T19:00:00Z", group:"Grupo A", phase:"Fase de Grupos" },
-      { id:"m2",  home:"Coreia do Sul",   homeFlag:"🇰🇷", away:"Rep. Tcheca",     awayFlag:"🇨🇿", date:"11/06 23h", kickoff:"2026-06-12T02:00:00Z", group:"Grupo A", phase:"Fase de Grupos" },
-      { id:"m3",  home:"Canadá",          homeFlag:"🇨🇦", away:"Bósnia",          awayFlag:"🇧🇦", date:"12/06 16h", kickoff:"2026-06-12T19:00:00Z", group:"Grupo B", phase:"Fase de Grupos" },
-      { id:"m4",  home:"Estados Unidos",  homeFlag:"🇺🇸", away:"Paraguai",        awayFlag:"🇵🇾", date:"12/06 22h", kickoff:"2026-06-13T01:00:00Z", group:"Grupo D", phase:"Fase de Grupos" },
-      { id:"m5",  home:"Austrália",       homeFlag:"🇦🇺", away:"Turquia",         awayFlag:"🇹🇷", date:"13/06 01h", kickoff:"2026-06-13T04:00:00Z", group:"Grupo D", phase:"Fase de Grupos" },
-      { id:"m6",  home:"Qatar",           homeFlag:"🇶🇦", away:"Suíça",           awayFlag:"🇨🇭", date:"13/06 16h", kickoff:"2026-06-13T19:00:00Z", group:"Grupo B", phase:"Fase de Grupos" },
-      { id:"m7",  home:"Brasil",          homeFlag:"🇧🇷", away:"Marrocos",        awayFlag:"🇲🇦", date:"13/06 19h", kickoff:"2026-06-13T22:00:00Z", group:"Grupo C", phase:"Fase de Grupos" },
-      { id:"m8",  home:"Haiti",           homeFlag:"🇭🇹", away:"Escócia",         awayFlag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", date:"13/06 22h", kickoff:"2026-06-14T01:00:00Z", group:"Grupo C", phase:"Fase de Grupos" },
-      { id:"m9",  home:"Alemanha",        homeFlag:"🇩🇪", away:"Curaçao",         awayFlag:"🇨🇼", date:"14/06 14h", kickoff:"2026-06-14T17:00:00Z", group:"Grupo E", phase:"Fase de Grupos" },
-      { id:"m10", home:"Holanda",         homeFlag:"🇳🇱", away:"Japão",           awayFlag:"🇯🇵", date:"14/06 17h", kickoff:"2026-06-14T20:00:00Z", group:"Grupo F", phase:"Fase de Grupos" },
-      { id:"m11", home:"Costa do Marfim", homeFlag:"🇨🇮", away:"Equador",         awayFlag:"🇪🇨", date:"14/06 20h", kickoff:"2026-06-14T23:00:00Z", group:"Grupo E", phase:"Fase de Grupos" },
-      { id:"m12", home:"Suécia",          homeFlag:"🇸🇪", away:"Tunísia",         awayFlag:"🇹🇳", date:"14/06 23h", kickoff:"2026-06-15T02:00:00Z", group:"Grupo F", phase:"Fase de Grupos" },
-      { id:"m13", home:"Espanha",         homeFlag:"🇪🇸", away:"Cabo Verde",      awayFlag:"🇨🇻", date:"15/06 13h", kickoff:"2026-06-15T16:00:00Z", group:"Grupo H", phase:"Fase de Grupos" },
-      { id:"m14", home:"Bélgica",         homeFlag:"🇧🇪", away:"Egito",           awayFlag:"🇪🇬", date:"15/06 16h", kickoff:"2026-06-15T19:00:00Z", group:"Grupo G", phase:"Fase de Grupos" },
-      { id:"m15", home:"Arábia Saudita",  homeFlag:"🇸🇦", away:"Uruguai",         awayFlag:"🇺🇾", date:"15/06 19h", kickoff:"2026-06-15T22:00:00Z", group:"Grupo H", phase:"Fase de Grupos" },
-      { id:"m16", home:"Irã",             homeFlag:"🇮🇷", away:"Nova Zelândia",   awayFlag:"🇳🇿", date:"15/06 22h", kickoff:"2026-06-16T01:00:00Z", group:"Grupo G", phase:"Fase de Grupos" },
-      { id:"m17", home:"França",          homeFlag:"🇫🇷", away:"Senegal",         awayFlag:"🇸🇳", date:"16/06 16h", kickoff:"2026-06-16T19:00:00Z", group:"Grupo I", phase:"Fase de Grupos" },
-      { id:"m18", home:"Iraque",          homeFlag:"🇮🇶", away:"Noruega",         awayFlag:"🇳🇴", date:"16/06 19h", kickoff:"2026-06-16T22:00:00Z", group:"Grupo I", phase:"Fase de Grupos" },
-      { id:"m19", home:"Argentina",       homeFlag:"🇦🇷", away:"Argélia",         awayFlag:"🇩🇿", date:"16/06 22h", kickoff:"2026-06-17T01:00:00Z", group:"Grupo J", phase:"Fase de Grupos" },
-      { id:"m20", home:"Áustria",         homeFlag:"🇦🇹", away:"Jordânia",        awayFlag:"🇯🇴", date:"17/06 01h", kickoff:"2026-06-17T04:00:00Z", group:"Grupo J", phase:"Fase de Grupos" },
-      { id:"m21", home:"Portugal",        homeFlag:"🇵🇹", away:"RD Congo",        awayFlag:"🇨🇩", date:"17/06 14h", kickoff:"2026-06-17T17:00:00Z", group:"Grupo K", phase:"Fase de Grupos" },
-      { id:"m22", home:"Inglaterra",      homeFlag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", away:"Croácia",       awayFlag:"🇭🇷", date:"17/06 17h", kickoff:"2026-06-17T20:00:00Z", group:"Grupo L", phase:"Fase de Grupos" },
-      { id:"m23", home:"Gana",            homeFlag:"🇬🇭", away:"Panamá",          awayFlag:"🇵🇦", date:"17/06 20h", kickoff:"2026-06-17T23:00:00Z", group:"Grupo L", phase:"Fase de Grupos" },
-      { id:"m24", home:"Uzbequistão",     homeFlag:"🇺🇿", away:"Colômbia",        awayFlag:"🇨🇴", date:"17/06 23h", kickoff:"2026-06-18T02:00:00Z", group:"Grupo K", phase:"Fase de Grupos" },
-      { id:"m25", home:"Rep. Tcheca",     homeFlag:"🇨🇿", away:"África do Sul",   awayFlag:"🇿🇦", date:"18/06 13h", kickoff:"2026-06-18T16:00:00Z", group:"Grupo A", phase:"Fase de Grupos" },
-      { id:"m26", home:"Suíça",           homeFlag:"🇨🇭", away:"Bósnia",          awayFlag:"🇧🇦", date:"18/06 16h", kickoff:"2026-06-18T19:00:00Z", group:"Grupo B", phase:"Fase de Grupos" },
-      { id:"m27", home:"Canadá",          homeFlag:"🇨🇦", away:"Qatar",           awayFlag:"🇶🇦", date:"18/06 19h", kickoff:"2026-06-18T22:00:00Z", group:"Grupo B", phase:"Fase de Grupos" },
-      { id:"m28", home:"México",          homeFlag:"🇲🇽", away:"Coreia do Sul",   awayFlag:"🇰🇷", date:"18/06 22h", kickoff:"2026-06-19T01:00:00Z", group:"Grupo A", phase:"Fase de Grupos" },
-      { id:"m29", home:"Turquia",         homeFlag:"🇹🇷", away:"Paraguai",        awayFlag:"🇵🇾", date:"19/06 01h", kickoff:"2026-06-19T04:00:00Z", group:"Grupo D", phase:"Fase de Grupos" },
-      { id:"m30", home:"EUA",             homeFlag:"🇺🇸", away:"Austrália",       awayFlag:"🇦🇺", date:"19/06 16h", kickoff:"2026-06-19T19:00:00Z", group:"Grupo D", phase:"Fase de Grupos" },
-      { id:"m31", home:"Escócia",         homeFlag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", away:"Marrocos",      awayFlag:"🇲🇦", date:"19/06 19h", kickoff:"2026-06-19T22:00:00Z", group:"Grupo C", phase:"Fase de Grupos" },
-      { id:"m32", home:"Brasil",          homeFlag:"🇧🇷", away:"Haiti",           awayFlag:"🇭🇹", date:"19/06 22h", kickoff:"2026-06-20T01:00:00Z", group:"Grupo C", phase:"Fase de Grupos" },
-      { id:"m33", home:"Holanda",         homeFlag:"🇳🇱", away:"Suécia",          awayFlag:"🇸🇪", date:"20/06 14h", kickoff:"2026-06-20T17:00:00Z", group:"Grupo F", phase:"Fase de Grupos" },
-      { id:"m34", home:"Alemanha",        homeFlag:"🇩🇪", away:"Costa do Marfim", awayFlag:"🇨🇮", date:"20/06 17h", kickoff:"2026-06-20T20:00:00Z", group:"Grupo E", phase:"Fase de Grupos" },
-      { id:"m35", home:"Equador",         homeFlag:"🇪🇨", away:"Curaçao",         awayFlag:"🇨🇼", date:"20/06 21h", kickoff:"2026-06-21T00:00:00Z", group:"Grupo E", phase:"Fase de Grupos" },
-      { id:"m36", home:"Tunísia",         homeFlag:"🇹🇳", away:"Japão",           awayFlag:"🇯🇵", date:"21/06 01h", kickoff:"2026-06-21T04:00:00Z", group:"Grupo F", phase:"Fase de Grupos" },
-      { id:"m37", home:"Espanha",         homeFlag:"🇪🇸", away:"Arábia Saudita",  awayFlag:"🇸🇦", date:"21/06 13h", kickoff:"2026-06-21T16:00:00Z", group:"Grupo H", phase:"Fase de Grupos" },
-      { id:"m38", home:"Bélgica",         homeFlag:"🇧🇪", away:"Irã",             awayFlag:"🇮🇷", date:"21/06 16h", kickoff:"2026-06-21T19:00:00Z", group:"Grupo G", phase:"Fase de Grupos" },
-      { id:"m39", home:"Uruguai",         homeFlag:"🇺🇾", away:"Cabo Verde",      awayFlag:"🇨🇻", date:"21/06 19h", kickoff:"2026-06-21T22:00:00Z", group:"Grupo H", phase:"Fase de Grupos" },
-      { id:"m40", home:"Nova Zelândia",   homeFlag:"🇳🇿", away:"Egito",           awayFlag:"🇪🇬", date:"21/06 22h", kickoff:"2026-06-22T01:00:00Z", group:"Grupo G", phase:"Fase de Grupos" },
-      { id:"m41", home:"Argentina",       homeFlag:"🇦🇷", away:"Áustria",         awayFlag:"🇦🇹", date:"22/06 14h", kickoff:"2026-06-22T17:00:00Z", group:"Grupo J", phase:"Fase de Grupos" },
-      { id:"m42", home:"França",          homeFlag:"🇫🇷", away:"Iraque",          awayFlag:"🇮🇶", date:"22/06 18h", kickoff:"2026-06-22T21:00:00Z", group:"Grupo I", phase:"Fase de Grupos" },
-      { id:"m43", home:"Noruega",         homeFlag:"🇳🇴", away:"Senegal",         awayFlag:"🇸🇳", date:"22/06 21h", kickoff:"2026-06-23T00:00:00Z", group:"Grupo I", phase:"Fase de Grupos" },
-      { id:"m44", home:"Jordânia",        homeFlag:"🇯🇴", away:"Argélia",         awayFlag:"🇩🇿", date:"23/06 00h", kickoff:"2026-06-23T03:00:00Z", group:"Grupo J", phase:"Fase de Grupos" },
-      { id:"m45", home:"Portugal",        homeFlag:"🇵🇹", away:"Uzbequistão",     awayFlag:"🇺🇿", date:"23/06 14h", kickoff:"2026-06-23T17:00:00Z", group:"Grupo K", phase:"Fase de Grupos" },
-      { id:"m46", home:"Inglaterra",      homeFlag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", away:"Gana",          awayFlag:"🇬🇭", date:"23/06 17h", kickoff:"2026-06-23T20:00:00Z", group:"Grupo L", phase:"Fase de Grupos" },
-      { id:"m47", home:"Panamá",          homeFlag:"🇵🇦", away:"Croácia",         awayFlag:"🇭🇷", date:"23/06 20h", kickoff:"2026-06-23T23:00:00Z", group:"Grupo L", phase:"Fase de Grupos" },
-      { id:"m48", home:"Colômbia",        homeFlag:"🇨🇴", away:"RD Congo",        awayFlag:"🇨🇩", date:"23/06 23h", kickoff:"2026-06-24T02:00:00Z", group:"Grupo K", phase:"Fase de Grupos" },
-      { id:"m49", home:"Suíça",           homeFlag:"🇨🇭", away:"Canadá",          awayFlag:"🇨🇦", date:"24/06 16h", kickoff:"2026-06-24T19:00:00Z", group:"Grupo B", phase:"Fase de Grupos" },
-      { id:"m50", home:"Qatar",           homeFlag:"🇶🇦", away:"Bósnia",          awayFlag:"🇧🇦", date:"24/06 16h", kickoff:"2026-06-24T19:00:00Z", group:"Grupo B", phase:"Fase de Grupos" },
-      { id:"m51", home:"Escócia",         homeFlag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", away:"Brasil",        awayFlag:"🇧🇷", date:"24/06 19h", kickoff:"2026-06-24T22:00:00Z", group:"Grupo C", phase:"Fase de Grupos" },
-      { id:"m52", home:"Marrocos",        homeFlag:"🇲🇦", away:"Haiti",           awayFlag:"🇭🇹", date:"24/06 19h", kickoff:"2026-06-24T22:00:00Z", group:"Grupo C", phase:"Fase de Grupos" },
-      { id:"m53", home:"Rep. Tcheca",     homeFlag:"🇨🇿", away:"México",          awayFlag:"🇲🇽", date:"24/06 22h", kickoff:"2026-06-25T01:00:00Z", group:"Grupo A", phase:"Fase de Grupos" },
-      { id:"m54", home:"África do Sul",   homeFlag:"🇿🇦", away:"Coreia do Sul",   awayFlag:"🇰🇷", date:"24/06 22h", kickoff:"2026-06-25T01:00:00Z", group:"Grupo A", phase:"Fase de Grupos" },
-      { id:"m55", home:"Equador",         homeFlag:"🇪🇨", away:"Alemanha",        awayFlag:"🇩🇪", date:"25/06 17h", kickoff:"2026-06-25T20:00:00Z", group:"Grupo E", phase:"Fase de Grupos" },
-      { id:"m56", home:"Curaçao",         homeFlag:"🇨🇼", away:"Costa do Marfim", awayFlag:"🇨🇮", date:"25/06 17h", kickoff:"2026-06-25T20:00:00Z", group:"Grupo E", phase:"Fase de Grupos" },
-      { id:"m57", home:"Tunísia",         homeFlag:"🇹🇳", away:"Holanda",         awayFlag:"🇳🇱", date:"25/06 20h", kickoff:"2026-06-25T23:00:00Z", group:"Grupo F", phase:"Fase de Grupos" },
-      { id:"m58", home:"Japão",           homeFlag:"🇯🇵", away:"Suécia",          awayFlag:"🇸🇪", date:"25/06 20h", kickoff:"2026-06-25T23:00:00Z", group:"Grupo F", phase:"Fase de Grupos" },
-      { id:"m59", home:"Turquia",         homeFlag:"🇹🇷", away:"EUA",             awayFlag:"🇺🇸", date:"25/06 23h", kickoff:"2026-06-26T02:00:00Z", group:"Grupo D", phase:"Fase de Grupos" },
-      { id:"m60", home:"Paraguai",        homeFlag:"🇵🇾", away:"Austrália",       awayFlag:"🇦🇺", date:"25/06 23h", kickoff:"2026-06-26T02:00:00Z", group:"Grupo D", phase:"Fase de Grupos" },
-      { id:"m61", home:"Noruega",         homeFlag:"🇳🇴", away:"França",          awayFlag:"🇫🇷", date:"26/06 16h", kickoff:"2026-06-26T19:00:00Z", group:"Grupo I", phase:"Fase de Grupos" },
-      { id:"m62", home:"Senegal",         homeFlag:"🇸🇳", away:"Iraque",          awayFlag:"🇮🇶", date:"26/06 16h", kickoff:"2026-06-26T19:00:00Z", group:"Grupo I", phase:"Fase de Grupos" },
-      { id:"m63", home:"Uruguai",         homeFlag:"🇺🇾", away:"Espanha",         awayFlag:"🇪🇸", date:"26/06 21h", kickoff:"2026-06-27T00:00:00Z", group:"Grupo H", phase:"Fase de Grupos" },
-      { id:"m64", home:"Cabo Verde",      homeFlag:"🇨🇻", away:"Arábia Saudita",  awayFlag:"🇸🇦", date:"26/06 21h", kickoff:"2026-06-27T00:00:00Z", group:"Grupo H", phase:"Fase de Grupos" },
-      { id:"m65", home:"Egito",           homeFlag:"🇪🇬", away:"Irã",             awayFlag:"🇮🇷", date:"27/06 00h", kickoff:"2026-06-27T03:00:00Z", group:"Grupo G", phase:"Fase de Grupos" },
-      { id:"m66", home:"Nova Zelândia",   homeFlag:"🇳🇿", away:"Bélgica",         awayFlag:"🇧🇪", date:"27/06 00h", kickoff:"2026-06-27T03:00:00Z", group:"Grupo G", phase:"Fase de Grupos" },
-      { id:"m67", home:"Panamá",          homeFlag:"🇵🇦", away:"Inglaterra",      awayFlag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", date:"27/06 18h", kickoff:"2026-06-27T21:00:00Z", group:"Grupo L", phase:"Fase de Grupos" },
-      { id:"m68", home:"Croácia",         homeFlag:"🇭🇷", away:"Gana",            awayFlag:"🇬🇭", date:"27/06 18h", kickoff:"2026-06-27T21:00:00Z", group:"Grupo L", phase:"Fase de Grupos" },
-      { id:"m69", home:"Colômbia",        homeFlag:"🇨🇴", away:"Portugal",        awayFlag:"🇵🇹", date:"27/06 20h30", kickoff:"2026-06-27T23:30:00Z", group:"Grupo K", phase:"Fase de Grupos" },
-      { id:"m70", home:"RD Congo",        homeFlag:"🇨🇩", away:"Uzbequistão",     awayFlag:"🇺🇿", date:"27/06 20h30", kickoff:"2026-06-27T23:30:00Z", group:"Grupo K", phase:"Fase de Grupos" },
-      { id:"m71", home:"Jordânia",        homeFlag:"🇯🇴", away:"Argentina",       awayFlag:"🇦🇷", date:"27/06 23h", kickoff:"2026-06-28T02:00:00Z", group:"Grupo J", phase:"Fase de Grupos" },
-      { id:"m72", home:"Argélia",         homeFlag:"🇩🇿", away:"Áustria",         awayFlag:"🇦🇹", date:"27/06 23h", kickoff:"2026-06-28T02:00:00Z", group:"Grupo J", phase:"Fase de Grupos" },
-      // 32 AVOS DE FINAL
-      { id:"r1",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"01/07", kickoff:"2026-07-01T19:00:00Z", group:"Jogo 73", phase:"32 Avos de Final" },
-      { id:"r2",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"01/07", kickoff:"2026-07-01T22:00:00Z", group:"Jogo 74", phase:"32 Avos de Final" },
-      { id:"r3",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"02/07", kickoff:"2026-07-02T19:00:00Z", group:"Jogo 75", phase:"32 Avos de Final" },
-      { id:"r4",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"02/07", kickoff:"2026-07-02T22:00:00Z", group:"Jogo 76", phase:"32 Avos de Final" },
-      { id:"r5",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"03/07", kickoff:"2026-07-03T19:00:00Z", group:"Jogo 77", phase:"32 Avos de Final" },
-      { id:"r6",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"03/07", kickoff:"2026-07-03T22:00:00Z", group:"Jogo 78", phase:"32 Avos de Final" },
-      { id:"r7",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"04/07", kickoff:"2026-07-04T19:00:00Z", group:"Jogo 79", phase:"32 Avos de Final" },
-      { id:"r8",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"04/07", kickoff:"2026-07-04T22:00:00Z", group:"Jogo 80", phase:"32 Avos de Final" },
-      { id:"r9",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"05/07", kickoff:"2026-07-05T19:00:00Z", group:"Jogo 81", phase:"32 Avos de Final" },
-      { id:"r10", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"05/07", kickoff:"2026-07-05T22:00:00Z", group:"Jogo 82", phase:"32 Avos de Final" },
-      { id:"r11", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"06/07", kickoff:"2026-07-06T19:00:00Z", group:"Jogo 83", phase:"32 Avos de Final" },
-      { id:"r12", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"06/07", kickoff:"2026-07-06T22:00:00Z", group:"Jogo 84", phase:"32 Avos de Final" },
-      { id:"r13", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"07/07", kickoff:"2026-07-07T19:00:00Z", group:"Jogo 85", phase:"32 Avos de Final" },
-      { id:"r14", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"07/07", kickoff:"2026-07-07T22:00:00Z", group:"Jogo 86", phase:"32 Avos de Final" },
-      { id:"r15", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"08/07", kickoff:"2026-07-08T19:00:00Z", group:"Jogo 87", phase:"32 Avos de Final" },
-      { id:"r16", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"08/07", kickoff:"2026-07-08T22:00:00Z", group:"Jogo 88", phase:"32 Avos de Final" },
-      // OITAVAS DE FINAL
-      { id:"o1", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"11/07", kickoff:"2026-07-11T19:00:00Z", group:"Oitavas 1", phase:"Oitavas de Final" },
-      { id:"o2", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"11/07", kickoff:"2026-07-11T22:00:00Z", group:"Oitavas 2", phase:"Oitavas de Final" },
-      { id:"o3", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"12/07", kickoff:"2026-07-12T19:00:00Z", group:"Oitavas 3", phase:"Oitavas de Final" },
-      { id:"o4", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"12/07", kickoff:"2026-07-12T22:00:00Z", group:"Oitavas 4", phase:"Oitavas de Final" },
-      { id:"o5", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"13/07", kickoff:"2026-07-13T19:00:00Z", group:"Oitavas 5", phase:"Oitavas de Final" },
-      { id:"o6", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"13/07", kickoff:"2026-07-13T22:00:00Z", group:"Oitavas 6", phase:"Oitavas de Final" },
-      { id:"o7", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"14/07", kickoff:"2026-07-14T19:00:00Z", group:"Oitavas 7", phase:"Oitavas de Final" },
-      { id:"o8", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"14/07", kickoff:"2026-07-14T22:00:00Z", group:"Oitavas 8", phase:"Oitavas de Final" },
-      // QUARTAS DE FINAL
-      { id:"q1", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"17/07", kickoff:"2026-07-17T19:00:00Z", group:"Quartas 1", phase:"Quartas de Final" },
-      { id:"q2", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"17/07", kickoff:"2026-07-17T22:00:00Z", group:"Quartas 2", phase:"Quartas de Final" },
-      { id:"q3", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"18/07", kickoff:"2026-07-18T19:00:00Z", group:"Quartas 3", phase:"Quartas de Final" },
-      { id:"q4", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"18/07", kickoff:"2026-07-18T22:00:00Z", group:"Quartas 4", phase:"Quartas de Final" },
-      // SEMIFINAIS
-      { id:"s1", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"15/07", kickoff:"2026-07-15T22:00:00Z", group:"Semifinal 1", phase:"Semifinais" },
-      { id:"s2", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"16/07", kickoff:"2026-07-16T22:00:00Z", group:"Semifinal 2", phase:"Semifinais" },
-      // FINAL
-      { id:"f1", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"19/07 16h", kickoff:"2026-07-19T19:00:00Z", group:"🏆 FINAL", phase:"Final" },
+      { id:"m1",  home:"México",          homeFlag:"🇲🇽", away:"África do Sul",   awayFlag:"🇿🇦", date:"11/06 16h", group:"Grupo A", phase:"Fase de Grupos" },
+      { id:"m2",  home:"Coreia do Sul",   homeFlag:"🇰🇷", away:"Rep. Tcheca",     awayFlag:"🇨🇿", date:"11/06 23h", group:"Grupo A", phase:"Fase de Grupos" },
+      { id:"m3",  home:"Canadá",          homeFlag:"🇨🇦", away:"Bósnia",          awayFlag:"🇧🇦", date:"12/06 16h", group:"Grupo B", phase:"Fase de Grupos" },
+      { id:"m4",  home:"Estados Unidos",  homeFlag:"🇺🇸", away:"Paraguai",        awayFlag:"🇵🇾", date:"12/06 22h", group:"Grupo D", phase:"Fase de Grupos" },
+      { id:"m5",  home:"Austrália",       homeFlag:"🇦🇺", away:"Turquia",         awayFlag:"🇹🇷", date:"13/06 01h", group:"Grupo D", phase:"Fase de Grupos" },
+      { id:"m6",  home:"Qatar",           homeFlag:"🇶🇦", away:"Suíça",           awayFlag:"🇨🇭", date:"13/06 16h", group:"Grupo B", phase:"Fase de Grupos" },
+      { id:"m7",  home:"Brasil",          homeFlag:"🇧🇷", away:"Marrocos",        awayFlag:"🇲🇦", date:"13/06 19h", group:"Grupo C", phase:"Fase de Grupos" },
+      { id:"m8",  home:"Haiti",           homeFlag:"🇭🇹", away:"Escócia",         awayFlag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", date:"13/06 22h", group:"Grupo C", phase:"Fase de Grupos" },
+      { id:"m9",  home:"Alemanha",        homeFlag:"🇩🇪", away:"Curaçao",         awayFlag:"🇨🇼", date:"14/06 14h", group:"Grupo E", phase:"Fase de Grupos" },
+      { id:"m10", home:"Holanda",         homeFlag:"🇳🇱", away:"Japão",           awayFlag:"🇯🇵", date:"14/06 17h", group:"Grupo F", phase:"Fase de Grupos" },
+      { id:"m11", home:"Costa do Marfim", homeFlag:"🇨🇮", away:"Equador",         awayFlag:"🇪🇨", date:"14/06 20h", group:"Grupo E", phase:"Fase de Grupos" },
+      { id:"m12", home:"Suécia",          homeFlag:"🇸🇪", away:"Tunísia",         awayFlag:"🇹🇳", date:"14/06 23h", group:"Grupo F", phase:"Fase de Grupos" },
+      { id:"m13", home:"Espanha",         homeFlag:"🇪🇸", away:"Cabo Verde",      awayFlag:"🇨🇻", date:"15/06 13h", group:"Grupo H", phase:"Fase de Grupos" },
+      { id:"m14", home:"Bélgica",         homeFlag:"🇧🇪", away:"Egito",           awayFlag:"🇪🇬", date:"15/06 16h", group:"Grupo G", phase:"Fase de Grupos" },
+      { id:"m15", home:"Arábia Saudita",  homeFlag:"🇸🇦", away:"Uruguai",         awayFlag:"🇺🇾", date:"15/06 19h", group:"Grupo H", phase:"Fase de Grupos" },
+      { id:"m16", home:"Irã",             homeFlag:"🇮🇷", away:"Nova Zelândia",   awayFlag:"🇳🇿", date:"15/06 22h", group:"Grupo G", phase:"Fase de Grupos" },
+      { id:"m17", home:"França",          homeFlag:"🇫🇷", away:"Senegal",         awayFlag:"🇸🇳", date:"16/06 16h", group:"Grupo I", phase:"Fase de Grupos" },
+      { id:"m18", home:"Iraque",          homeFlag:"🇮🇶", away:"Noruega",         awayFlag:"🇳🇴", date:"16/06 19h", group:"Grupo I", phase:"Fase de Grupos" },
+      { id:"m19", home:"Argentina",       homeFlag:"🇦🇷", away:"Argélia",         awayFlag:"🇩🇿", date:"16/06 22h", group:"Grupo J", phase:"Fase de Grupos" },
+      { id:"m20", home:"Áustria",         homeFlag:"🇦🇹", away:"Jordânia",        awayFlag:"🇯🇴", date:"17/06 01h", group:"Grupo J", phase:"Fase de Grupos" },
+      { id:"m21", home:"Portugal",        homeFlag:"🇵🇹", away:"RD Congo",        awayFlag:"🇨🇩", date:"17/06 14h", group:"Grupo K", phase:"Fase de Grupos" },
+      { id:"m22", home:"Inglaterra",      homeFlag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", away:"Croácia",       awayFlag:"🇭🇷", date:"17/06 17h", group:"Grupo L", phase:"Fase de Grupos" },
+      { id:"m23", home:"Gana",            homeFlag:"🇬🇭", away:"Panamá",          awayFlag:"🇵🇦", date:"17/06 20h", group:"Grupo L", phase:"Fase de Grupos" },
+      { id:"m24", home:"Uzbequistão",     homeFlag:"🇺🇿", away:"Colômbia",        awayFlag:"🇨🇴", date:"17/06 23h", group:"Grupo K", phase:"Fase de Grupos" },
+      { id:"m25", home:"Rep. Tcheca",     homeFlag:"🇨🇿", away:"África do Sul",   awayFlag:"🇿🇦", date:"18/06 13h", group:"Grupo A", phase:"Fase de Grupos" },
+      { id:"m26", home:"Suíça",           homeFlag:"🇨🇭", away:"Bósnia",          awayFlag:"🇧🇦", date:"18/06 16h", group:"Grupo B", phase:"Fase de Grupos" },
+      { id:"m27", home:"Canadá",          homeFlag:"🇨🇦", away:"Qatar",           awayFlag:"🇶🇦", date:"18/06 19h", group:"Grupo B", phase:"Fase de Grupos" },
+      { id:"m28", home:"México",          homeFlag:"🇲🇽", away:"Coreia do Sul",   awayFlag:"🇰🇷", date:"18/06 22h", group:"Grupo A", phase:"Fase de Grupos" },
+      { id:"m29", home:"Turquia",         homeFlag:"🇹🇷", away:"Paraguai",        awayFlag:"🇵🇾", date:"19/06 01h", group:"Grupo D", phase:"Fase de Grupos" },
+      { id:"m30", home:"EUA",             homeFlag:"🇺🇸", away:"Austrália",       awayFlag:"🇦🇺", date:"19/06 16h", group:"Grupo D", phase:"Fase de Grupos" },
+      { id:"m31", home:"Escócia",         homeFlag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", away:"Marrocos",      awayFlag:"🇲🇦", date:"19/06 19h", group:"Grupo C", phase:"Fase de Grupos" },
+      { id:"m32", home:"Brasil",          homeFlag:"🇧🇷", away:"Haiti",           awayFlag:"🇭🇹", date:"19/06 22h", group:"Grupo C", phase:"Fase de Grupos" },
+      { id:"m33", home:"Holanda",         homeFlag:"🇳🇱", away:"Suécia",          awayFlag:"🇸🇪", date:"20/06 14h", group:"Grupo F", phase:"Fase de Grupos" },
+      { id:"m34", home:"Alemanha",        homeFlag:"🇩🇪", away:"Costa do Marfim", awayFlag:"🇨🇮", date:"20/06 17h", group:"Grupo E", phase:"Fase de Grupos" },
+      { id:"m35", home:"Equador",         homeFlag:"🇪🇨", away:"Curaçao",         awayFlag:"🇨🇼", date:"20/06 21h", group:"Grupo E", phase:"Fase de Grupos" },
+      { id:"m36", home:"Tunísia",         homeFlag:"🇹🇳", away:"Japão",           awayFlag:"🇯🇵", date:"21/06 01h", group:"Grupo F", phase:"Fase de Grupos" },
+      { id:"m37", home:"Espanha",         homeFlag:"🇪🇸", away:"Arábia Saudita",  awayFlag:"🇸🇦", date:"21/06 13h", group:"Grupo H", phase:"Fase de Grupos" },
+      { id:"m38", home:"Bélgica",         homeFlag:"🇧🇪", away:"Irã",             awayFlag:"🇮🇷", date:"21/06 16h", group:"Grupo G", phase:"Fase de Grupos" },
+      { id:"m39", home:"Uruguai",         homeFlag:"🇺🇾", away:"Cabo Verde",      awayFlag:"🇨🇻", date:"21/06 19h", group:"Grupo H", phase:"Fase de Grupos" },
+      { id:"m40", home:"Nova Zelândia",   homeFlag:"🇳🇿", away:"Egito",           awayFlag:"🇪🇬", date:"21/06 22h", group:"Grupo G", phase:"Fase de Grupos" },
+      { id:"m41", home:"Argentina",       homeFlag:"🇦🇷", away:"Áustria",         awayFlag:"🇦🇹", date:"22/06 14h", group:"Grupo J", phase:"Fase de Grupos" },
+      { id:"m42", home:"França",          homeFlag:"🇫🇷", away:"Iraque",          awayFlag:"🇮🇶", date:"22/06 18h", group:"Grupo I", phase:"Fase de Grupos" },
+      { id:"m43", home:"Noruega",         homeFlag:"🇳🇴", away:"Senegal",         awayFlag:"🇸🇳", date:"22/06 21h", group:"Grupo I", phase:"Fase de Grupos" },
+      { id:"m44", home:"Jordânia",        homeFlag:"🇯🇴", away:"Argélia",         awayFlag:"🇩🇿", date:"23/06 00h", group:"Grupo J", phase:"Fase de Grupos" },
+      { id:"m45", home:"Portugal",        homeFlag:"🇵🇹", away:"Uzbequistão",     awayFlag:"🇺🇿", date:"23/06 14h", group:"Grupo K", phase:"Fase de Grupos" },
+      { id:"m46", home:"Inglaterra",      homeFlag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", away:"Gana",          awayFlag:"🇬🇭", date:"23/06 17h", group:"Grupo L", phase:"Fase de Grupos" },
+      { id:"m47", home:"Panamá",          homeFlag:"🇵🇦", away:"Croácia",         awayFlag:"🇭🇷", date:"23/06 20h", group:"Grupo L", phase:"Fase de Grupos" },
+      { id:"m48", home:"Colômbia",        homeFlag:"🇨🇴", away:"RD Congo",        awayFlag:"🇨🇩", date:"23/06 23h", group:"Grupo K", phase:"Fase de Grupos" },
+      { id:"m49", home:"Suíça",           homeFlag:"🇨🇭", away:"Canadá",          awayFlag:"🇨🇦", date:"24/06 16h", group:"Grupo B", phase:"Fase de Grupos" },
+      { id:"m50", home:"Qatar",           homeFlag:"🇶🇦", away:"Bósnia",          awayFlag:"🇧🇦", date:"24/06 16h", group:"Grupo B", phase:"Fase de Grupos" },
+      { id:"m51", home:"Escócia",         homeFlag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", away:"Brasil",        awayFlag:"🇧🇷", date:"24/06 19h", group:"Grupo C", phase:"Fase de Grupos" },
+      { id:"m52", home:"Marrocos",        homeFlag:"🇲🇦", away:"Haiti",           awayFlag:"🇭🇹", date:"24/06 19h", group:"Grupo C", phase:"Fase de Grupos" },
+      { id:"m53", home:"Rep. Tcheca",     homeFlag:"🇨🇿", away:"México",          awayFlag:"🇲🇽", date:"24/06 22h", group:"Grupo A", phase:"Fase de Grupos" },
+      { id:"m54", home:"África do Sul",   homeFlag:"🇿🇦", away:"Coreia do Sul",   awayFlag:"🇰🇷", date:"24/06 22h", group:"Grupo A", phase:"Fase de Grupos" },
+      { id:"m55", home:"Equador",         homeFlag:"🇪🇨", away:"Alemanha",        awayFlag:"🇩🇪", date:"25/06 17h", group:"Grupo E", phase:"Fase de Grupos" },
+      { id:"m56", home:"Curaçao",         homeFlag:"🇨🇼", away:"Costa do Marfim", awayFlag:"🇨🇮", date:"25/06 17h", group:"Grupo E", phase:"Fase de Grupos" },
+      { id:"m57", home:"Tunísia",         homeFlag:"🇹🇳", away:"Holanda",         awayFlag:"🇳🇱", date:"25/06 20h", group:"Grupo F", phase:"Fase de Grupos" },
+      { id:"m58", home:"Japão",           homeFlag:"🇯🇵", away:"Suécia",          awayFlag:"🇸🇪", date:"25/06 20h", group:"Grupo F", phase:"Fase de Grupos" },
+      { id:"m59", home:"Turquia",         homeFlag:"🇹🇷", away:"EUA",             awayFlag:"🇺🇸", date:"25/06 23h", group:"Grupo D", phase:"Fase de Grupos" },
+      { id:"m60", home:"Paraguai",        homeFlag:"🇵🇾", away:"Austrália",       awayFlag:"🇦🇺", date:"25/06 23h", group:"Grupo D", phase:"Fase de Grupos" },
+      { id:"m61", home:"Noruega",         homeFlag:"🇳🇴", away:"França",          awayFlag:"🇫🇷", date:"26/06 16h", group:"Grupo I", phase:"Fase de Grupos" },
+      { id:"m62", home:"Senegal",         homeFlag:"🇸🇳", away:"Iraque",          awayFlag:"🇮🇶", date:"26/06 16h", group:"Grupo I", phase:"Fase de Grupos" },
+      { id:"m63", home:"Uruguai",         homeFlag:"🇺🇾", away:"Espanha",         awayFlag:"🇪🇸", date:"26/06 21h", group:"Grupo H", phase:"Fase de Grupos" },
+      { id:"m64", home:"Cabo Verde",      homeFlag:"🇨🇻", away:"Arábia Saudita",  awayFlag:"🇸🇦", date:"26/06 21h", group:"Grupo H", phase:"Fase de Grupos" },
+      { id:"m65", home:"Egito",           homeFlag:"🇪🇬", away:"Irã",             awayFlag:"🇮🇷", date:"27/06 00h", group:"Grupo G", phase:"Fase de Grupos" },
+      { id:"m66", home:"Nova Zelândia",   homeFlag:"🇳🇿", away:"Bélgica",         awayFlag:"🇧🇪", date:"27/06 00h", group:"Grupo G", phase:"Fase de Grupos" },
+      { id:"m67", home:"Panamá",          homeFlag:"🇵🇦", away:"Inglaterra",      awayFlag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", date:"27/06 18h", group:"Grupo L", phase:"Fase de Grupos" },
+      { id:"m68", home:"Croácia",         homeFlag:"🇭🇷", away:"Gana",            awayFlag:"🇬🇭", date:"27/06 18h", group:"Grupo L", phase:"Fase de Grupos" },
+      { id:"m69", home:"Colômbia",        homeFlag:"🇨🇴", away:"Portugal",        awayFlag:"🇵🇹", date:"27/06 20h30", group:"Grupo K", phase:"Fase de Grupos" },
+      { id:"m70", home:"RD Congo",        homeFlag:"🇨🇩", away:"Uzbequistão",     awayFlag:"🇺🇿", date:"27/06 20h30", group:"Grupo K", phase:"Fase de Grupos" },
+      { id:"m71", home:"Jordânia",        homeFlag:"🇯🇴", away:"Argentina",       awayFlag:"🇦🇷", date:"27/06 23h", group:"Grupo J", phase:"Fase de Grupos" },
+      { id:"m72", home:"Argélia",         homeFlag:"🇩🇿", away:"Áustria",         awayFlag:"🇦🇹", date:"27/06 23h", group:"Grupo J", phase:"Fase de Grupos" },
+      { id:"r1",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"01/07", group:"Jogo 73", phase:"32 Avos de Final" },
+      { id:"r2",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"01/07", group:"Jogo 74", phase:"32 Avos de Final" },
+      { id:"r3",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"02/07", group:"Jogo 75", phase:"32 Avos de Final" },
+      { id:"r4",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"02/07", group:"Jogo 76", phase:"32 Avos de Final" },
+      { id:"r5",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"03/07", group:"Jogo 77", phase:"32 Avos de Final" },
+      { id:"r6",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"03/07", group:"Jogo 78", phase:"32 Avos de Final" },
+      { id:"r7",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"04/07", group:"Jogo 79", phase:"32 Avos de Final" },
+      { id:"r8",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"04/07", group:"Jogo 80", phase:"32 Avos de Final" },
+      { id:"r9",  home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"05/07", group:"Jogo 81", phase:"32 Avos de Final" },
+      { id:"r10", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"05/07", group:"Jogo 82", phase:"32 Avos de Final" },
+      { id:"r11", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"06/07", group:"Jogo 83", phase:"32 Avos de Final" },
+      { id:"r12", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"06/07", group:"Jogo 84", phase:"32 Avos de Final" },
+      { id:"r13", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"07/07", group:"Jogo 85", phase:"32 Avos de Final" },
+      { id:"r14", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"07/07", group:"Jogo 86", phase:"32 Avos de Final" },
+      { id:"r15", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"08/07", group:"Jogo 87", phase:"32 Avos de Final" },
+      { id:"r16", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"08/07", group:"Jogo 88", phase:"32 Avos de Final" },
+      { id:"o1", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"11/07", group:"Oitavas 1", phase:"Oitavas de Final" },
+      { id:"o2", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"11/07", group:"Oitavas 2", phase:"Oitavas de Final" },
+      { id:"o3", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"12/07", group:"Oitavas 3", phase:"Oitavas de Final" },
+      { id:"o4", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"12/07", group:"Oitavas 4", phase:"Oitavas de Final" },
+      { id:"o5", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"13/07", group:"Oitavas 5", phase:"Oitavas de Final" },
+      { id:"o6", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"13/07", group:"Oitavas 6", phase:"Oitavas de Final" },
+      { id:"o7", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"14/07", group:"Oitavas 7", phase:"Oitavas de Final" },
+      { id:"o8", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"14/07", group:"Oitavas 8", phase:"Oitavas de Final" },
+      { id:"q1", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"17/07", group:"Quartas 1", phase:"Quartas de Final" },
+      { id:"q2", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"17/07", group:"Quartas 2", phase:"Quartas de Final" },
+      { id:"q3", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"18/07", group:"Quartas 3", phase:"Quartas de Final" },
+      { id:"q4", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"18/07", group:"Quartas 4", phase:"Quartas de Final" },
+      { id:"s1", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"15/07", group:"Semifinal 1", phase:"Semifinais" },
+      { id:"s2", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"16/07", group:"Semifinal 2", phase:"Semifinais" },
+      { id:"f1", home:"A definir", homeFlag:"🏳️", away:"A definir", awayFlag:"🏳️", date:"19/07 16h", group:"🏆 FINAL", phase:"Final" },
     ];
 
-    async function init() {
-      const resSnap = await getDocs(collection(db, 'resultados'));
-      const resultados = {};
-      resSnap.forEach(d => { resultados[d.id] = d.data(); });
+    async function loadResultados() {
+      const snap = await getDocs(collection(db, 'resultados'));
+      resultados = {};
+      snap.forEach(d => { resultados[d.id] = d.data(); });
+    }
 
+    function renderFilter() {
+      const c = document.getElementById('phase-filter');
+      c.innerHTML = PHASES.map(p =>
+        `<button class="filter-btn ${p===currentPhase?'active':''}" onclick="setPhase('${p}')">${p}</button>`
+      ).join('');
+    }
+
+    window.setPhase = function(p) { currentPhase = p; renderFilter(); renderMatches(); };
+
+    function renderMatches() {
       const c = document.getElementById('admin-matches');
       c.innerHTML = '';
-      MATCHES.forEach(m => {
+      MATCHES.filter(m => m.phase === currentPhase).forEach(m => {
         const res = resultados[m.id];
         const div = document.createElement('div');
         div.className = 'match-card';
@@ -167,32 +257,72 @@
           <div class="match-head">
             <span class="match-group">${m.group}</span>
             <span class="match-date">${m.date}</span>
-            ${res ? '<span class="badge-done">✅ Resultado salvo</span>' : '<span class="badge-open">Aguardando</span>'}
+            ${res ? '<span class="badge-done">✅ Salvo: '+res.home+' × '+res.away+'</span>' : '<span class="badge-open">Aguardando</span>'}
           </div>
           <div class="match-teams">
             <div class="team"><div class="flag">${m.homeFlag}</div><div class="name">${m.home}</div></div>
             <div class="score-inputs">
-              <input type="number" min="0" max="20" step="1" value="${res ? res.home : ''}" id="rh-${m.id}" placeholder="0" />
+              <input type="number" min="0" max="20" step="1" value="${res?res.home:''}" id="rh-${m.id}" placeholder="0" />
               <span class="vs-x">×</span>
-              <input type="number" min="0" max="20" step="1" value="${res ? res.away : ''}" id="ra-${m.id}" placeholder="0" />
+              <input type="number" min="0" max="20" step="1" value="${res?res.away:''}" id="ra-${m.id}" placeholder="0" />
             </div>
             <div class="team"><div class="flag">${m.awayFlag}</div><div class="name">${m.away}</div></div>
           </div>
-          <button class="btn-save-res" onclick="salvarResultado('${m.id}')">Salvar resultado</button>
+          <button class="btn-save-res" onclick="salvarResultado('${m.id}')">💾 Salvar resultado</button>
         `;
         c.appendChild(div);
       });
     }
 
     window.salvarResultado = async function(id) {
-      const h = document.getElementById('rh-' + id);
-      const a = document.getElementById('ra-' + id);
-      if (!h || !a || h.value === '' || a.value === '') { alert('Preencha os dois placares!'); return; }
-      await setDoc(doc(db, 'resultados', id), { home: parseInt(h.value), away: parseInt(a.value), savedAt: new Date().toISOString() });
+      const h = document.getElementById('rh-'+id);
+      const a = document.getElementById('ra-'+id);
+      if (!h||!a||h.value===''||a.value==='') { alert('Preencha os dois placares!'); return; }
+      await setDoc(doc(db,'resultados',id), { home: parseInt(h.value), away: parseInt(a.value), savedAt: new Date().toISOString() });
+      resultados[id] = { home: parseInt(h.value), away: parseInt(a.value) };
+      renderMatches();
       alert('Resultado salvo! ✅');
-      init();
     };
 
+    // AUTO SYNC from openfootball
+    window.syncResultados = async function() {
+      const status = document.getElementById('sync-status');
+      status.innerHTML = '<div class="sync-msg info">🔄 Buscando resultados na internet...</div>';
+      try {
+        const res = await fetch('https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json');
+        const data = await res.json();
+        let salvos = 0;
+        for (const match of data.matches) {
+          if (!match.score) continue; // sem resultado ainda
+          const key1 = match.team1+'|'+match.team2;
+          const key2 = match.team2+'|'+match.team1;
+          const id = TEAM_TO_ID[key1] || TEAM_TO_ID[key2];
+          if (!id) continue;
+          // score format: "2:1" or "1:0 (a.e.t.)"
+          const scoreStr = match.score.replace(/\s*\(.*\)/, '').trim();
+          const parts = scoreStr.split(':');
+          if (parts.length !== 2) continue;
+          const home = parseInt(parts[0]);
+          const away = parseInt(parts[1]);
+          if (isNaN(home)||isNaN(away)) continue;
+          await setDoc(doc(db,'resultados',id), { home, away, savedAt: new Date().toISOString(), auto: true });
+          resultados[id] = { home, away };
+          salvos++;
+        }
+        status.innerHTML = salvos > 0
+          ? `<div class="sync-msg success">✅ ${salvos} resultado(s) importado(s) com sucesso!</div>`
+          : `<div class="sync-msg warn">⚠️ Nenhum resultado novo encontrado ainda. Os jogos ainda não começaram ou a fonte ainda não atualizou.</div>`;
+        renderMatches();
+      } catch(e) {
+        status.innerHTML = '<div class="sync-msg error">❌ Erro ao buscar resultados. Verifique sua conexão e tente de novo.</div>';
+      }
+    };
+
+    async function init() {
+      await loadResultados();
+      renderFilter();
+      renderMatches();
+    }
     init();
   </script>
 </body>
