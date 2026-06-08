@@ -26,8 +26,10 @@
     </div>
 
     <div class="legend">
-      <span>⭐ 5 pts = placar exato</span>
-      <span>✅ 3 pts = vencedor/empate certo</span>
+      <span>🎯 25 pts = placar exato</span>
+      <span>⭐ 18 pts = vencedor + gols de uma equipe</span>
+      <span>✅ 15 pts = vencedor + diferença de gols</span>
+      <span>👍 12 pts = só o vencedor</span>
       <span>❌ 0 pts = errou</span>
       <span class="legend-note">Placar do tempo regulamentar</span>
     </div>
@@ -194,9 +196,18 @@
         const p = userPalpites[m.id];
         let badge = '';
         if (p && p.home !== undefined) {
-          if (p.home === res.home && p.away === res.away) badge = '<span class="badge-exact">⭐ +5 pts</span>';
-          else if ((p.home > p.away && res.home > res.away) || (p.home < p.away && res.home < res.away) || (p.home === p.away && res.home === res.away)) badge = '<span class="badge-win">✅ +3 pts</span>';
-          else badge = '<span class="badge-miss">❌ 0 pts</span>';
+          if (p.home === res.home && p.away === res.away) {
+            badge = '<span class="badge-exact">🎯 +25 pts</span>';
+          } else {
+            const acertouVencedor = (p.home>p.away&&res.home>res.away)||(p.home<p.away&&res.home<res.away)||(p.home===p.away&&res.home===res.away);
+            if (acertouVencedor) {
+              if (p.home===res.home || p.away===res.away) badge = '<span class="badge-win">⭐ +18 pts</span>';
+              else if ((p.home-p.away)===(res.home-res.away)) badge = '<span class="badge-win">✅ +15 pts</span>';
+              else badge = '<span class="badge-win">👍 +12 pts</span>';
+            } else {
+              badge = '<span class="badge-miss">❌ 0 pts</span>';
+            }
+          }
         }
         const div = document.createElement('div');
         div.className = 'res-card';

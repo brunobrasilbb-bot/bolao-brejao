@@ -262,8 +262,19 @@
         const p = userPalpites[m.id];
         if (!p||p.home===''||p.home===undefined) return;
         count++;
-        if (p.home===res.home&&p.away===res.away) { pts+=5; exact++; }
-        else if ((p.home>p.away&&res.home>res.away)||(p.home<p.away&&res.home<res.away)||(p.home===p.away&&res.home===res.away)) { pts+=3; win++; }
+        if (p.home===res.home && p.away===res.away) {
+          pts+=25; exact++;
+        } else {
+          const acertouVencedor = (p.home>p.away&&res.home>res.away)||(p.home<p.away&&res.home<res.away)||(p.home===p.away&&res.home===res.away);
+          if (acertouVencedor) {
+            const acertouGolsHome = p.home===res.home;
+            const acertouGolsAway = p.away===res.away;
+            const acertouDiff = (p.home-p.away)===(res.home-res.away);
+            if (acertouGolsHome || acertouGolsAway) { pts+=18; win++; }
+            else if (acertouDiff) { pts+=15; win++; }
+            else { pts+=12; win++; }
+          }
+        }
       });
       document.getElementById('s-pts').textContent=pts;
       document.getElementById('s-exact').textContent=exact;
