@@ -172,21 +172,69 @@
     let userPalpites = {};
     let unsavedIds = new Set();
     let resultados = {};
+    let allPalpites = {}; // todos os palpites de todos os usuarios
+    let allUsers = {};    // userId -> nome
     let currentPhase = "Fase de Grupos";
     const phases = ["Fase de Grupos","32 Avos de Final","Oitavas de Final","Quartas de Final","Semifinais","Final"];
 
 
 
 
+    function calcPontosJogo(p, res) {
+      if (!p || p.home === undefined || p.home === '') return null;
+      if (!res) return null;
+      if (p.home === res.home && p.away === res.away) return 25;
+      const acertouVencedor = (p.home>p.away&&res.home>res.away)||(p.home<p.away&&res.home<res.away)||(p.home===p.away&&res.home===res.away);
+      if (!acertouVencedor) return 0;
+      if (p.home===res.home || p.away===res.away) return 18;
+      if ((p.home-p.away)===(res.home-res.away)) return 15;
+      return 12;
+    }
+
+    window.togglePalpites = function(matchId, btn) {
+      const div = document.getElementById('gp-' + matchId);
+      if (div.style.display !== 'none') {
+        div.style.display = 'none';
+        btn.textContent = '👥 Ver palpites da galera';
+        return;
+      }
+      const res = resultados[matchId];
+      const rows = Object.entries(allPalpites)
+        .filter(([uid, pal]) => pal[matchId] !== undefined)
+        .map(([uid, pal]) => {
+          const p = pal[matchId];
+          const nome = allUsers[uid] || pal.nome || uid;
+          const pts = calcPontosJogo(p, res);
+          const ptsLabel = res ? (pts === 25 ? '🎯 25' : pts === 18 ? '⭐ 18' : pts === 15 ? '✅ 15' : pts === 12 ? '👍 12' : '❌ 0') : '';
+          return `<div class="galera-row">
+            <span class="galera-nome">${nome}</span>
+            <span class="galera-placar">${p.home} × ${p.away}</span>
+            ${res ? `<span class="galera-pts">${ptsLabel}</span>` : ''}
+          </div>`;
+        });
+      if (rows.length === 0) {
+        div.innerHTML = '<p class="galera-empty">Nenhum palpite registrado ainda.</p>';
+      } else {
+        div.innerHTML = rows.join('');
+      }
+      div.style.display = 'block';
+      btn.textContent = '🔼 Fechar palpites';
+    };
+
     async function init() {
       const user = getUser();
       if (!user) { document.getElementById('no-login').style.display = 'block'; return; }
       document.getElementById('area-palpites').style.display = 'block';
-      const resSnap = await getDocs(collection(db, 'resultados'));
+      const [resSnap, palSnap, userPalSnap, usersSnap] = await Promise.all([
+        getDocs(collection(db, 'resultados')),
+        getDocs(collection(db, 'palpites')),
+        getDoc(doc(db, 'palpites', user.id)),
+        getDocs(collection(db, 'usuarios')),
+      ]);
       resSnap.forEach(d => { resultados[d.id] = d.data(); });
-      const palRef = doc(db, 'palpites', user.id);
-      const palSnap = await getDoc(palRef);
-      if (palSnap.exists()) userPalpites = palSnap.data();
+      palSnap.forEach(d => { allPalpites[d.id] = d.data(); });
+      usersSnap.forEach(d => { allUsers[d.id] = d.data().nome; });
+      if (userPalSnap.exists()) userPalpites = userPalSnap.data();
       renderFilter();
       renderMatches();
       updateStats();
@@ -229,6 +277,8 @@
             <div class="team"><div class="flag">${m.awayFlag}</div><div class="name">${m.away}</div></div>
           </div>
           ${locked&&res?`<div class="result-final">Resultado: ${res.home} × ${res.away}</div>`:''}
+          ${locked ? `<button class="btn-ver-palpites" onclick="togglePalpites('${m.id}', this)">👥 Ver palpites da galera</button>
+          <div class="galera-palpites" id="gp-${m.id}" style="display:none;"></div>` : ''}
         `;
         c.appendChild(div);
       });

@@ -405,3 +405,34 @@ h1.subtitle-below { margin-bottom: 4px; }
 .sync-msg.success { background: var(--green-light); color: var(--green-dark); font-weight: 500; }
 .sync-msg.warn { background: #fff8e1; color: #b8860b; }
 .sync-msg.error { background: #fdecea; color: #c62828; }
+
+/* PALPITES DA GALERA */
+.btn-ver-palpites {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.btn-ver-palpites:hover { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+.galera-palpites { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.galera-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.galera-row:last-child { border-bottom: none; }
+.galera-nome { font-weight: 500; color: var(--text); flex: 1; }
+.galera-placar { font-weight: 700; color: var(--green-dark); font-size: 15px; margin: 0 12px; }
+.galera-pts { font-size: 12px; color: var(--text-muted); min-width: 50px; text-align: right; }
+.galera-empty { font-size: 13px; color: var(--text-muted); text-align: center; padding: 8px 0; }
