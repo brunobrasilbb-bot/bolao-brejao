@@ -172,8 +172,46 @@
     let userPalpites = {};
     let unsavedIds = new Set();
     let resultados = {};
+    let oddsMap = {};
     let currentPhase = "Fase de Grupos";
     const phases = ["Fase de Grupos","32 Avos de Final","Oitavas de Final","Quartas de Final","Semifinais","Final"];
+    const ODDS_API_KEY = "7e3221a90737efdf46d5ecf984d1852c";
+
+    const HOME_TEAM_TO_ID = {
+      "Mexico": "m1", "South Korea": "m2", "Canada": "m3",
+      "United States": "m4", "USA": "m4", "Australia": "m5",
+      "Qatar": "m6", "Brazil": "m7", "Haiti": "m8",
+      "Germany": "m9", "Netherlands": "m10", "Ivory Coast": "m11",
+      "Cote d'Ivoire": "m11", "Sweden": "m12", "Spain": "m13",
+      "Belgium": "m14", "Saudi Arabia": "m15", "Iran": "m16",
+      "France": "m17", "Iraq": "m18", "Argentina": "m19",
+      "Austria": "m20", "Portugal": "m21", "England": "m22",
+      "Ghana": "m23", "Uzbekistan": "m24",
+    };
+
+    async function fetchOdds() {
+      try {
+        const url = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h&bookmakers=bet365&oddsFormat=decimal`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        data.forEach(game => {
+          const id = HOME_TEAM_TO_ID[game.home_team];
+          if (!id) return;
+          const bet365 = game.bookmakers.find(b => b.key === 'bet365');
+          if (!bet365) return;
+          const h2h = bet365.markets.find(m => m.key === 'h2h');
+          if (!h2h) return;
+          const outcomes = h2h.outcomes;
+          const homeOdd = outcomes.find(o => o.name === game.home_team)?.price;
+          const awayOdd = outcomes.find(o => o.name === game.away_team)?.price;
+          const drawOdd = outcomes.find(o => o.name === 'Draw')?.price;
+          if (homeOdd && awayOdd) {
+            oddsMap[id] = { home: homeOdd.toFixed(2), draw: drawOdd ? drawOdd.toFixed(2) : '-', away: awayOdd.toFixed(2) };
+          }
+        });
+      } catch(e) { console.log('Odds unavailable:', e); }
+    }
 
     async function init() {
       const user = getUser();
@@ -185,6 +223,7 @@
       const palSnap = await getDoc(palRef);
       if (palSnap.exists()) userPalpites = palSnap.data();
       renderFilter();
+      await fetchOdds();
       renderMatches();
       updateStats();
     }
@@ -226,6 +265,15 @@
             <div class="team"><div class="flag">${m.awayFlag}</div><div class="name">${m.away}</div></div>
           </div>
           ${locked&&res?`<div class="result-final">Resultado: ${res.home} × ${res.away}</div>`:''}
+          ${!locked && oddsMap[m.id] ? `
+          <div class="odds-row">
+            <span class="odds-label">Odds Bet365</span>
+            <div class="odds-values">
+              <div class="odd-item"><span class="odd-label">1</span><span class="odd-val">${oddsMap[m.id].home}</span></div>
+              <div class="odd-item"><span class="odd-label">X</span><span class="odd-val">${oddsMap[m.id].draw}</span></div>
+              <div class="odd-item"><span class="odd-label">2</span><span class="odd-val">${oddsMap[m.id].away}</span></div>
+            </div>
+          </div>` : ''}
         `;
         c.appendChild(div);
       });

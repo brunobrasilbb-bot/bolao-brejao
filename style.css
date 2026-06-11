@@ -405,3 +405,29 @@ h1.subtitle-below { margin-bottom: 4px; }
 .sync-msg.success { background: var(--green-light); color: var(--green-dark); font-weight: 500; }
 .sync-msg.warn { background: #fff8e1; color: #b8860b; }
 .sync-msg.error { background: #fdecea; color: #c62828; }
+
+/* ODDS */
+.odds-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.odds-label { font-size: 11px; color: var(--text-muted); }
+.odds-values { display: flex; gap: 8px; }
+.odd-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f9f9f9;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+  min-width: 52px;
+}
+.odd-label { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+.odd-val { font-size: 15px; font-weight: 700; color: var(--green-dark); }
