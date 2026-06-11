@@ -191,25 +191,34 @@
 
     async function fetchOdds() {
       try {
-        const url = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h&bookmakers=bet365&oddsFormat=decimal`;
+        // Tenta bet365 primeiro, depois qualquer bookmaker disponível
+        const url = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${ODDS_API_KEY}&regions=eu,us,uk&markets=h2h&oddsFormat=decimal`;
         const res = await fetch(url);
-        if (!res.ok) return;
+        if (!res.ok) { console.log('Odds API error:', res.status); return; }
         const data = await res.json();
         data.forEach(game => {
           const id = HOME_TEAM_TO_ID[game.home_team];
           if (!id) return;
-          const bet365 = game.bookmakers.find(b => b.key === 'bet365');
-          if (!bet365) return;
-          const h2h = bet365.markets.find(m => m.key === 'h2h');
+          if (!game.bookmakers || game.bookmakers.length === 0) return;
+          // Prefere bet365, senão usa o primeiro disponível
+          const bookie = game.bookmakers.find(b => b.key === 'bet365') || game.bookmakers[0];
+          const h2h = bookie.markets.find(m => m.key === 'h2h');
           if (!h2h) return;
           const outcomes = h2h.outcomes;
           const homeOdd = outcomes.find(o => o.name === game.home_team)?.price;
           const awayOdd = outcomes.find(o => o.name === game.away_team)?.price;
           const drawOdd = outcomes.find(o => o.name === 'Draw')?.price;
           if (homeOdd && awayOdd) {
-            oddsMap[id] = { home: homeOdd.toFixed(2), draw: drawOdd ? drawOdd.toFixed(2) : '-', away: awayOdd.toFixed(2) };
+            const bookieName = bookie.key === 'bet365' ? 'Bet365' : bookie.title;
+            oddsMap[id] = {
+              home: homeOdd.toFixed(2),
+              draw: drawOdd ? drawOdd.toFixed(2) : '-',
+              away: awayOdd.toFixed(2),
+              source: bookieName
+            };
           }
         });
+        console.log('Odds carregadas:', Object.keys(oddsMap).length, 'jogos');
       } catch(e) { console.log('Odds unavailable:', e); }
     }
 
@@ -267,11 +276,11 @@
           ${locked&&res?`<div class="result-final">Resultado: ${res.home} × ${res.away}</div>`:''}
           ${!locked && oddsMap[m.id] ? `
           <div class="odds-row">
-            <span class="odds-label">Odds Bet365</span>
+            <span class="odds-label">Odds ${oddsMap[m.id].source || 'Bet365'}</span>
             <div class="odds-values">
-              <div class="odd-item"><span class="odd-label">1</span><span class="odd-val">${oddsMap[m.id].home}</span></div>
-              <div class="odd-item"><span class="odd-label">X</span><span class="odd-val">${oddsMap[m.id].draw}</span></div>
-              <div class="odd-item"><span class="odd-label">2</span><span class="odd-val">${oddsMap[m.id].away}</span></div>
+              <div class="odd-item"><span class="odd-label">1 ${m.home.split(' ')[0]}</span><span class="odd-val">${oddsMap[m.id].home}</span></div>
+              <div class="odd-item"><span class="odd-label">Empate</span><span class="odd-val">${oddsMap[m.id].draw}</span></div>
+              <div class="odd-item"><span class="odd-label">2 ${m.away.split(' ')[0]}</span><span class="odd-val">${oddsMap[m.id].away}</span></div>
             </div>
           </div>` : ''}
         `;
