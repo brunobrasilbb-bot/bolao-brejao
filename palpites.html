@@ -172,58 +172,10 @@
     let userPalpites = {};
     let unsavedIds = new Set();
     let resultados = {};
-    let oddsMap = {};
     let currentPhase = "Fase de Grupos";
     const phases = ["Fase de Grupos","32 Avos de Final","Oitavas de Final","Quartas de Final","Semifinais","Final"];
-    const API_FOOTBALL_KEY = "d0ab0508eea42e862504cddc360a1266";
 
-    // API-Football fixture IDs for World Cup 2026 matches -> our match IDs
-    // We'll match by home/away team names from the API response
-    const API_TEAM_TO_ID = {
-      "Mexico": "m1", "South Korea": "m2", "Canada": "m3",
-      "United States": "m4", "Australia": "m5", "Qatar": "m6",
-      "Brazil": "m7", "Haiti": "m8", "Germany": "m9",
-      "Netherlands": "m10", "Ivory Coast": "m11", "Sweden": "m12",
-      "Spain": "m13", "Belgium": "m14", "Saudi Arabia": "m15",
-      "Iran": "m16", "France": "m17", "Iraq": "m18",
-      "Argentina": "m19", "Austria": "m20", "Portugal": "m21",
-      "England": "m22", "Ghana": "m23", "Uzbekistan": "m24",
-    };
 
-    async function fetchOdds() {
-      try {
-        // API-Football: league 1 = World Cup, bookmaker 8 = Bet365
-        const url = `https://v3.football.api-sports.io/odds?league=1&season=2026&bookmaker=8`;
-        const res = await fetch(url, {
-          headers: { 'x-apisports-key': API_FOOTBALL_KEY }
-        });
-        if (!res.ok) { console.log('Odds API status:', res.status); return; }
-        const data = await res.json();
-        if (!data.response) return;
-        data.response.forEach(item => {
-          const fixture = item.fixture;
-          const homeTeam = item.teams?.home?.name;
-          const awayTeam = item.teams?.away?.name;
-          const id = API_TEAM_TO_ID[homeTeam];
-          if (!id) return;
-          const bets = item.bookmakers?.[0]?.bets;
-          if (!bets) return;
-          const h2h = bets.find(b => b.name === 'Match Winner');
-          if (!h2h) return;
-          const homeOdd = h2h.values.find(v => v.value === 'Home')?.odd;
-          const drawOdd = h2h.values.find(v => v.value === 'Draw')?.odd;
-          const awayOdd = h2h.values.find(v => v.value === 'Away')?.odd;
-          if (homeOdd && awayOdd) {
-            oddsMap[id] = {
-              home: parseFloat(homeOdd).toFixed(2),
-              draw: drawOdd ? parseFloat(drawOdd).toFixed(2) : '-',
-              away: parseFloat(awayOdd).toFixed(2),
-            };
-          }
-        });
-        console.log('Odds carregadas (API-Football):', Object.keys(oddsMap).length, 'jogos');
-      } catch(e) { console.log('Odds unavailable:', e); }
-    }
 
 
     async function init() {
@@ -236,7 +188,6 @@
       const palSnap = await getDoc(palRef);
       if (palSnap.exists()) userPalpites = palSnap.data();
       renderFilter();
-      await fetchOdds();
       renderMatches();
       updateStats();
     }
@@ -278,15 +229,6 @@
             <div class="team"><div class="flag">${m.awayFlag}</div><div class="name">${m.away}</div></div>
           </div>
           ${locked&&res?`<div class="result-final">Resultado: ${res.home} × ${res.away}</div>`:''}
-          ${!locked && oddsMap[m.id] ? `
-          <div class="odds-row">
-            <span class="odds-label">Odds Bet365</span>
-            <div class="odds-values">
-              <div class="odd-item"><span class="odd-label">1</span><span class="odd-name">${m.home.split(' ')[0]}</span><span class="odd-val">${oddsMap[m.id].home}</span></div>
-              <div class="odd-item"><span class="odd-label">X</span><span class="odd-name">Empate</span><span class="odd-val">${oddsMap[m.id].draw}</span></div>
-              <div class="odd-item"><span class="odd-label">2</span><span class="odd-name">${m.away.split(' ')[0]}</span><span class="odd-val">${oddsMap[m.id].away}</span></div>
-            </div>
-          </div>` : ''}
         `;
         c.appendChild(div);
       });
