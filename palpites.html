@@ -226,33 +226,6 @@
     }
 
 
-        const data = await res.json();
-        data.forEach(game => {
-          const id = HOME_TEAM_TO_ID[game.home_team];
-          if (!id) return;
-          if (!game.bookmakers || game.bookmakers.length === 0) return;
-          // Prefere bet365, senão usa o primeiro disponível
-          const bookie = game.bookmakers.find(b => b.key === 'bet365') || game.bookmakers[0];
-          const h2h = bookie.markets.find(m => m.key === 'h2h');
-          if (!h2h) return;
-          const outcomes = h2h.outcomes;
-          const homeOdd = outcomes.find(o => o.name === game.home_team)?.price;
-          const awayOdd = outcomes.find(o => o.name === game.away_team)?.price;
-          const drawOdd = outcomes.find(o => o.name === 'Draw')?.price;
-          if (homeOdd && awayOdd) {
-            const bookieName = bookie.key === 'bet365' ? 'Bet365' : bookie.title;
-            oddsMap[id] = {
-              home: homeOdd.toFixed(2),
-              draw: drawOdd ? drawOdd.toFixed(2) : '-',
-              away: awayOdd.toFixed(2),
-              source: bookieName
-            };
-          }
-        });
-        console.log('Odds carregadas:', Object.keys(oddsMap).length, 'jogos');
-      } catch(e) { console.log('Odds unavailable:', e); }
-    }
-
     async function init() {
       const user = getUser();
       if (!user) { document.getElementById('no-login').style.display = 'block'; return; }
