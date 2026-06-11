@@ -426,8 +426,9 @@ h1.subtitle-below { margin-bottom: 4px; }
   background: #f9f9f9;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 4px 12px;
-  min-width: 52px;
+  padding: 5px 12px;
+  min-width: 60px;
 }
-.odd-label { font-size: 10px; color: var(--text-muted); font-weight: 600; }
-.odd-val { font-size: 15px; font-weight: 700; color: var(--green-dark); }
+.odd-label { font-size: 10px; color: var(--text-muted); font-weight: 700; }
+.odd-name { font-size: 10px; color: var(--text-muted); }
+.odd-val { font-size: 16px; font-weight: 700; color: var(--green-dark); margin-top: 2px; }
