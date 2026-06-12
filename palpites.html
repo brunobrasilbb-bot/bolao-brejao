@@ -253,7 +253,19 @@
 
     function renderMatches() {
       const c = document.getElementById('matches-container');
-      const filtered = MATCHES.filter(m => m.phase === currentPhase);
+      const now = new Date();
+      // Mostra só jogos ainda não encerrados OU encerrados há menos de 3h (pra ver resultado na hora)
+      const filtered = MATCHES.filter(m => {
+        if (m.phase !== currentPhase) return false;
+        if (!m.kickoff) return true;
+        const kickoff = new Date(m.kickoff);
+        const horasDesde = (now - kickoff) / (1000 * 60 * 60);
+        return horasDesde < 3; // some da lista após 3h do início
+      });
+      if (filtered.length === 0) {
+        c.innerHTML = '<div class="empty" style="text-align:center;padding:2rem;color:var(--text-muted);">✅ Todos os jogos desta fase já foram encerrados.<br>Confira os resultados na aba <a href="resultados.html" style="color:var(--green-dark);font-weight:600;">Resultados</a>.</div>';
+        return;
+      }
       c.innerHTML = '';
       filtered.forEach(m => {
         const locked = isLocked(m);
