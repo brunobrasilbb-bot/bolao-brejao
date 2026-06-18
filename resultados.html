@@ -27,8 +27,8 @@
 
     <div class="legend">
       <span>🎯 25 pts = placar exato</span>
-      <span>⭐ 18 pts = vencedor + gols de uma equipe</span>
-      <span>✅ 15 pts = vencedor + diferença de gols</span>
+      <span>✅ 18 pts = vencedor + diferença de gols</span>
+      <span>⭐ 15 pts = vencedor + gols de uma equipe</span>
       <span>👍 12 pts = só o vencedor</span>
       <span>❌ 0 pts = errou</span>
       <span class="legend-note">Placar do tempo regulamentar</span>
@@ -201,8 +201,8 @@
           } else {
             const acertouVencedor = (p.home>p.away&&res.home>res.away)||(p.home<p.away&&res.home<res.away)||(p.home===p.away&&res.home===res.away);
             if (acertouVencedor) {
-              if (p.home===res.home || p.away===res.away) badge = '<span class="badge-win">⭐ +18 pts</span>';
-              else if ((p.home-p.away)===(res.home-res.away)) badge = '<span class="badge-win">✅ +15 pts</span>';
+              if ((p.home-p.away)===(res.home-res.away)) badge = '<span class="badge-win">✅ +18 pts</span>';
+              else if (p.home===res.home || p.away===res.away) badge = '<span class="badge-win">⭐ +15 pts</span>';
               else badge = '<span class="badge-win">👍 +12 pts</span>';
             } else {
               badge = '<span class="badge-miss">❌ 0 pts</span>';

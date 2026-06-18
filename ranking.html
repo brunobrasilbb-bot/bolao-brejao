@@ -27,8 +27,8 @@
 
     <div class="legend">
       <span>🎯 25 pts = placar exato</span>
-      <span>⭐ 18 pts = vencedor + gols de uma equipe</span>
-      <span>✅ 15 pts = vencedor + diferença de gols</span>
+      <span>✅ 18 pts = vencedor + diferença de gols</span>
+      <span>⭐ 15 pts = vencedor + gols de uma equipe</span>
       <span>👍 12 pts = só o vencedor</span>
       <span>❌ 0 pts = errou</span>
       <span class="legend-note">Placar do tempo regulamentar</span>
@@ -215,8 +215,8 @@
               const acertouGolsHome = p.home===res.home;
               const acertouGolsAway = p.away===res.away;
               const acertouDiff = (p.home-p.away)===(res.home-res.away);
-              if (acertouGolsHome || acertouGolsAway) { pts+=18; win++; }
-              else if (acertouDiff) { pts+=15; win++; }
+              if (acertouDiff) { pts+=18; win++; }
+              else if (acertouGolsHome || acertouGolsAway) { pts+=15; win++; }
               else { pts+=12; win++; }
             }
           }

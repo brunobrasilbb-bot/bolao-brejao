@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulação — Bolão do Brejão</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">🏆 Bolão do Brejão</span>
+      <nav>
+        <a href="index.html">Início</a>
+        <a href="ranking.html">Ranking atual</a>
+        <a href="simulacao.html" class="active">Simulação</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <h1>🔬 Simulação de Pontuação</h1>
+    <p class="subtitle">Comparação entre a pontuação atual e a proposta pela galera</p>
+
+    <div class="sim-legend">
+      <div class="sim-box atual">
+        <h3>📊 Pontuação Atual</h3>
+        <p>🎯 25 pts = placar exato</p>
+        <p>⭐ 18 pts = vencedor + gols de uma equipe</p>
+        <p>✅ 15 pts = vencedor + diferença de gols</p>
+        <p>👍 12 pts = só o vencedor</p>
+      </div>
+      <div class="sim-box nova">
+        <h3>🆕 Pontuação Proposta</h3>
+        <p>🎯 25 pts = placar exato</p>
+        <p>✅ 18 pts = vencedor + diferença de gols</p>
+        <p>⭐ 15 pts = vencedor + gols de uma equipe</p>
+        <p>👍 12 pts = só o vencedor</p>
+      </div>
+    </div>
+
+    <div id="sim-container"><p class="loading">Calculando...</p></div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAluSHveth9Eo_1HiBdFdQiUKMC8xv4Djg",
+      authDomain: "bolao-do-brejo.firebaseapp.com",
+      projectId: "bolao-do-brejo",
+      storageBucket: "bolao-do-brejo.firebasestorage.app",
+      messagingSenderId: "466701021829",
+      appId: "1:466701021829:web:aa0c83c11f594b58742fec"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const MATCHES = ["m1","m2","m3","m4","m5","m6","m7","m8","m9","m10","m11","m12","m13","m14","m15","m16","m17","m18","m19","m20","m21","m22","m23","m24","m25","m26","m27","m28","m29","m30","m31","m32","m33","m34","m35","m36","m37","m38","m39","m40","m41","m42","m43","m44","m45","m46","m47","m48","m49","m50","m51","m52","m53","m54","m55","m56","m57","m58","m59","m60","m61","m62","m63","m64","m65","m66","m67","m68","m69","m70","m71","m72","r1","r2","r3","r4","r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","r15","r16","o1","o2","o3","o4","o5","o6","o7","o8","q1","q2","q3","q4","s1","s2","f1"];
+
+    function calcAtual(p, res) {
+      if (!p || p.home === undefined || !res) return 0;
+      if (p.home === res.home && p.away === res.away) return 25;
+      const venc = (p.home>p.away&&res.home>res.away)||(p.home<p.away&&res.home<res.away)||(p.home===p.away&&res.home===res.away);
+      if (!venc) return 0;
+      if (p.home===res.home || p.away===res.away) return 18;
+      if ((p.home-p.away)===(res.home-res.away)) return 15;
+      return 12;
+    }
+
+    function calcNova(p, res) {
+      if (!p || p.home === undefined || !res) return 0;
+      if (p.home === res.home && p.away === res.away) return 25;
+      const venc = (p.home>p.away&&res.home>res.away)||(p.home<p.away&&res.home<res.away)||(p.home===p.away&&res.home===res.away);
+      if (!venc) return 0;
+      if ((p.home-p.away)===(res.home-res.away)) return 18;
+      if (p.home===res.home || p.away===res.away) return 15;
+      return 12;
+    }
+
+    async function init() {
+      const [resSnap, palSnap, usersSnap] = await Promise.all([
+        getDocs(collection(db, 'resultados')),
+        getDocs(collection(db, 'palpites')),
+        getDocs(collection(db, 'usuarios')),
+      ]);
+
+      const resultados = {};
+      resSnap.forEach(d => { resultados[d.id] = d.data(); });
+
+      const palpites = {};
+      palSnap.forEach(d => { palpites[d.id] = d.data(); });
+
+      const usuarios = {};
+      usersSnap.forEach(d => { usuarios[d.id] = d.data().nome; });
+
+      // Calculate both rankings
+      const ranked = Object.entries(usuarios).map(([id, nome]) => {
+        const pal = palpites[id] || {};
+        let ptsAtual = 0, ptsNova = 0;
+        MATCHES.forEach(mid => {
+          const res = resultados[mid];
+          const p = pal[mid];
+          if (res && p) {
+            ptsAtual += calcAtual(p, res);
+            ptsNova += calcNova(p, res);
+          }
+        });
+        return { id, nome, ptsAtual, ptsNova };
+      });
+
+      const rankAtual = [...ranked].sort((a,b) => b.ptsAtual - a.ptsAtual);
+      const rankNova  = [...ranked].sort((a,b) => b.ptsNova  - a.ptsNova);
+
+      const posAtual = {};
+      rankAtual.forEach((u, i) => { posAtual[u.id] = i + 1; });
+      const posNova = {};
+      rankNova.forEach((u, i) => { posNova[u.id] = i + 1; });
+
+      const medals = ['🥇','🥈','🥉'];
+
+      let html = `
+        <div class="sim-tables">
+          <div class="sim-col">
+            <h2>📊 Ranking Atual</h2>
+            <table class="ranking-table">
+              <thead><tr><th>#</th><th>Participante</th><th>Pontos</th></tr></thead>
+              <tbody>
+                ${rankAtual.map((u,i) => `<tr>
+                  <td class="pos">${medals[i]||i+1}</td>
+                  <td class="nome">${u.nome}</td>
+                  <td><span class="pts-badge">${u.ptsAtual}</span></td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="sim-col">
+            <h2>🆕 Ranking Proposto</h2>
+            <table class="ranking-table">
+              <thead><tr><th>#</th><th>Participante</th><th>Pontos</th><th>↕️</th></tr></thead>
+              <tbody>
+                ${rankNova.map((u,i) => {
+                  const diff = posAtual[u.id] - (i+1);
+                  const arrow = diff > 0 ? `<span style="color:green">▲${diff}</span>` : diff < 0 ? `<span style="color:red">▼${Math.abs(diff)}</span>` : '<span style="color:#999">—</span>';
+                  return `<tr class="${diff !== 0 ? 'changed-row' : ''}">
+                    <td class="pos">${medals[i]||i+1}</td>
+                    <td class="nome">${u.nome}</td>
+                    <td><span class="pts-badge">${u.ptsNova}</span></td>
+                    <td style="text-align:center;font-size:13px;">${arrow}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+
+      document.getElementById('sim-container').innerHTML = html;
+    }
+
+    init();
+  </script>
+</body>
+</html>
