@@ -343,8 +343,8 @@
             const acertouGolsHome = p.home===res.home;
             const acertouGolsAway = p.away===res.away;
             const acertouDiff = (p.home-p.away)===(res.home-res.away);
-            if (acertouDiff) { pts+=18; win++; }
-            else if (acertouGolsHome || acertouGolsAway) { pts+=15; win++; }
+            if (acertouGolsHome || acertouGolsAway) { pts+=18; win++; }
+            else if (acertouDiff) { pts+=15; win++; }
             else { pts+=12; win++; }
           }
         }
