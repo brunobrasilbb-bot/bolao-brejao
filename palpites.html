@@ -320,7 +320,7 @@
           userPalpites[m.id] = { home: parseInt(h.value), away: parseInt(a.value) };
         }
       });
-      await setDoc(doc(db,'palpites',user.id), { ...userPalpites, userId: user.id, nome: user.nome });
+      await setDoc(doc(db,'palpites',user.id), { ...userPalpites, userId: user.id, nome: user.nome }, { merge: true });
       unsavedIds.clear();
       document.getElementById('unsaved-txt').textContent = '0 palpites não salvos';
       updateStats();
