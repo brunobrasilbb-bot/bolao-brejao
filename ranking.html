@@ -221,7 +221,8 @@
             }
           }
         });
-        return { nome: pal.nome || pal.userId, email: pal.userId, pts, exact, win, count };
+        const ajuste = pal.ajuste || 0;
+        return { nome: pal.nome || pal.userId, email: pal.userId, pts: pts + ajuste, exact, win, count };
       }).sort((a, b) => b.pts - a.pts || b.exact - a.exact);
 
       const medals = ['🥇', '🥈', '🥉'];

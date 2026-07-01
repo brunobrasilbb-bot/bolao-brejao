@@ -349,7 +349,8 @@
           }
         }
       });
-      document.getElementById('s-pts').textContent=pts;
+      const ajuste = userPalpites.ajuste || 0;
+      document.getElementById('s-pts').textContent=pts + ajuste;
       document.getElementById('s-exact').textContent=exact;
       document.getElementById('s-win').textContent=win;
       document.getElementById('s-count').textContent=count;
