@@ -222,7 +222,10 @@
           }
         });
         const ajuste = pal.ajuste || 0;
-        return { nome: pal.nome || pal.userId, email: pal.userId, pts: pts + ajuste, exact, win, count };
+        const ajuste_palpites = pal.ajuste_palpites || 0;
+        const ajuste_vencedores = pal.ajuste_vencedores || 0;
+        const ajuste_exatos = pal.ajuste_exatos || 0;
+        return { nome: pal.nome || pal.userId, email: pal.userId, pts: pts + ajuste, exact: exact + ajuste_exatos, win: win + ajuste_vencedores, count: count + ajuste_palpites };
       }).sort((a, b) => b.pts - a.pts || b.exact - a.exact);
 
       const medals = ['🥇', '🥈', '🥉'];

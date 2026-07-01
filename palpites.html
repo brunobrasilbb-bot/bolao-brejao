@@ -350,10 +350,13 @@
         }
       });
       const ajuste = userPalpites.ajuste || 0;
-      document.getElementById('s-pts').textContent=pts + ajuste;
-      document.getElementById('s-exact').textContent=exact;
-      document.getElementById('s-win').textContent=win;
-      document.getElementById('s-count').textContent=count;
+      const ajuste_palpites = userPalpites.ajuste_palpites || 0;
+      const ajuste_vencedores = userPalpites.ajuste_vencedores || 0;
+      const ajuste_exatos = userPalpites.ajuste_exatos || 0;
+      document.getElementById('s-pts').textContent = pts + ajuste;
+      document.getElementById('s-exact').textContent = exact + ajuste_exatos;
+      document.getElementById('s-win').textContent = win + ajuste_vencedores;
+      document.getElementById('s-count').textContent = count + ajuste_palpites;
     }
 
     init();
