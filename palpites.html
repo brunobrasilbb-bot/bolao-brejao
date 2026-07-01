@@ -312,15 +312,33 @@
     window.salvar = async function() {
       const user = getUser();
       if (!user) return;
+
+      // Busca os palpites mais recentes do Firebase antes de salvar
+      // Isso garante que NUNCA perdemos dados, mesmo em caso de bug
+      let palpitesFirebase = {};
+      try {
+        const snap = await getDoc(doc(db, 'palpites', user.id));
+        if (snap.exists()) palpitesFirebase = snap.data();
+      } catch(e) { console.log('Erro ao buscar palpites:', e); }
+
+      // Mescla: Firebase + memória local + novos inputs
+      // Prioridade: novo input > memória local > Firebase
+      const palpitesFinais = { ...palpitesFirebase, ...userPalpites };
+
       MATCHES.forEach(m => {
         if (isLocked(m)) return;
         const h = document.getElementById('ph-'+m.id);
         const a = document.getElementById('pa-'+m.id);
         if (h && a && h.value!=='' && a.value!=='') {
-          userPalpites[m.id] = { home: parseInt(h.value), away: parseInt(a.value) };
+          palpitesFinais[m.id] = { home: parseInt(h.value), away: parseInt(a.value) };
         }
       });
-      await setDoc(doc(db,'palpites',user.id), { ...userPalpites, userId: user.id, nome: user.nome }, { merge: true });
+
+      // Atualiza memória local
+      Object.assign(userPalpites, palpitesFinais);
+
+      // Salva com merge:true como proteção adicional
+      await setDoc(doc(db,'palpites',user.id), { ...palpitesFinais, userId: user.id, nome: user.nome }, { merge: true });
       unsavedIds.clear();
       document.getElementById('unsaved-txt').textContent = '0 palpites não salvos';
       updateStats();
